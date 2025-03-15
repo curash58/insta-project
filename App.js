@@ -8,6 +8,8 @@ import SignIn from './screens/signIn';
 import FollowersFollowing from './screens/followersFollowing';
 import PostCreation from './screens/postCreation';
 import Main from './screens/main';
+import ProfileUser from './screens/profileUser';
+import ProfileUserLook from './screens/profileUserLook';
 
 const Stack = createNativeStackNavigator();
 
@@ -17,7 +19,7 @@ const App = () => {
       <NavigationContainer>
         {/* Change screen here for testing */}
         <Stack.Navigator 
-          initialRouteName="Main"
+          initialRouteName="ProfileUserLook"
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: '#FBFFE4' },
@@ -40,6 +42,20 @@ const App = () => {
           <Stack.Screen 
             name="Main" 
             component={Main}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen 
+            name="ProfileUser" 
+            component={ProfileUser}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen 
+            name="ProfileUserLook" 
+            component={ProfileUserLook}
             options={{
               headerShown: false,
             }}
