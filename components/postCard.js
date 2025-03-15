@@ -1,9 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
 const PostCard = ({ post }) => {
+  const [liked, setLiked] = useState(false);
+
+  const handleLike = () => {
+    setLiked(!liked);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.userInfoContainer}>
@@ -22,18 +29,19 @@ const PostCard = ({ post }) => {
 
       <View style={styles.actionsContainer}>
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={styles.actionButton}>
-            <Text style={styles.actionText}>like</Text>
+          <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
+            <Ionicons 
+              name={liked ? "heart" : "heart-outline"} 
+              size={24} 
+              color={liked ? "#FF4D67" : "#3D8D7A"} 
+            />
+            <Text style={styles.actionText}>{post.likesCount} likes</Text>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.actionButton}>
-            <Text style={styles.actionText}>comment</Text>
+            <Ionicons name="chatbubble-outline" size={24} color="#3D8D7A" />
+            <Text style={styles.actionText}>{post.commentsCount} comments</Text>
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.statsContainer}>
-          <Text style={styles.statsText}>{post.likesCount} likes</Text>
-          <Text style={styles.statsText}>{post.commentsCount} comments</Text>
         </View>
       </View>
 
@@ -77,24 +85,19 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   actionButton: {
-    backgroundColor: '#3D8D7A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FBFFE4',
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
-    marginRight: 10,
+    marginRight: 20,
   },
   actionText: {
-    color: '#FBFFE4',
+    color: '#3D8D7A',
     fontWeight: '600',
     fontSize: 16,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statsText: {
-    color: '#3D8D7A',
-    fontSize: 14,
+    marginLeft: 8,
   },
   captionContainer: {
     padding: 10,

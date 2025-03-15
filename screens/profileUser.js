@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Dimensions, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import TabForAllPages from '../components/tabForAllPages';
 
 const { width } = Dimensions.get('window');
 const numColumns = 3;
@@ -40,51 +41,56 @@ const ProfileUser = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.usernameHeader}>Username</Text>
-      
-      <View style={styles.profileSection}>
-        <Image 
-          source={{ uri: 'https://picsum.photos/200/200?random=profile' }} 
-          style={styles.profileImage}
-        />
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <Text style={styles.usernameHeader}>Username</Text>
         
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>82</Text>
-            <Text style={styles.statLabel}>posts</Text>
-          </View>
+        <View style={styles.profileSection}>
+          <Image 
+            source={{ uri: 'https://picsum.photos/200/200?random=profile' }} 
+            style={styles.profileImage}
+          />
           
-          <TouchableOpacity style={styles.statItem} onPress={navigateToFollowers}>
-            <Text style={styles.statNumber}>150</Text>
-            <Text style={styles.statLabel}>followers</Text>
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>82</Text>
+              <Text style={styles.statLabel}>posts</Text>
+            </View>
+            
+            <TouchableOpacity style={styles.statItem} onPress={navigateToFollowers}>
+              <Text style={styles.statNumber}>150</Text>
+              <Text style={styles.statLabel}>followers</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.statItem} onPress={navigateToFollowing}>
+              <Text style={styles.statNumber}>250</Text>
+              <Text style={styles.statLabel}>following</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.button}>
+            <Text style={styles.buttonText}>settings</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.statItem} onPress={navigateToFollowing}>
-            <Text style={styles.statNumber}>250</Text>
-            <Text style={styles.statLabel}>following</Text>
+          <TouchableOpacity style={styles.button}>
+            <Text style={styles.buttonText}>saved posts</Text>
           </TouchableOpacity>
         </View>
-      </View>
-      
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button}>
-          <Text style={styles.buttonText}>settings</Text>
-        </TouchableOpacity>
         
-        <TouchableOpacity style={styles.button}>
-          <Text style={styles.buttonText}>saved posts</Text>
-        </TouchableOpacity>
-      </View>
+        <FlatList
+          data={POSTS}
+          renderItem={renderPost}
+          keyExtractor={item => item.id}
+          numColumns={numColumns}
+          contentContainerStyle={styles.postsGrid}
+          showsVerticalScrollIndicator={false}
+        />
+      </SafeAreaView>
       
-      <FlatList
-        data={POSTS}
-        renderItem={renderPost}
-        keyExtractor={item => item.id}
-        numColumns={numColumns}
-        contentContainerStyle={styles.postsGrid}
-      />
-    </SafeAreaView>
+      <TabForAllPages />
+    </View>
   );
 };
 
@@ -92,6 +98,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FBFFE4',
+  },
+  safeArea: {
+    flex: 1,
   },
   usernameHeader: {
     fontSize: 24,

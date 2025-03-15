@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import TabForAllPages from '../components/tabForAllPages';
 
 const PostCreation = () => {
   const [image, setImage] = useState(null);
@@ -43,56 +44,64 @@ const PostCreation = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Create Post</Text>
-      </View>
-
-      <View style={styles.content}>
-        <TouchableOpacity 
-          style={styles.imageContainer} 
-          onPress={pickImage}
-        >
-          {image ? (
-            <Image source={{ uri: image }} style={styles.image} />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={50} color="#A3D1C6" />
-              <Text style={styles.placeholderText}>Tap to add image</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.captionContainer}>
-          <TextInput
-            style={styles.captionInput}
-            placeholder="Write a caption"
-            placeholderTextColor="#A3D1C6"
-            value={caption}
-            onChangeText={setCaption}
-            multiline
-            numberOfLines={4}
-          />
+    <View style={styles.mainContainer}>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Create Post</Text>
         </View>
 
-        <TouchableOpacity 
-          style={[
-            styles.postButton,
-            (!image || !caption.trim()) && styles.postButtonDisabled
-          ]}
-          onPress={handlePost}
-          disabled={!image || !caption.trim()}
-        >
-          <Text style={styles.postButtonText}>Post</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+        <View style={styles.content}>
+          <TouchableOpacity 
+            style={styles.imageContainer} 
+            onPress={pickImage}
+          >
+            {image ? (
+              <Image source={{ uri: image }} style={styles.image} />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="image-outline" size={50} color="#A3D1C6" />
+                <Text style={styles.placeholderText}>Tap to add image</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.captionContainer}>
+            <TextInput
+              style={styles.captionInput}
+              placeholder="Write a caption"
+              placeholderTextColor="#A3D1C6"
+              value={caption}
+              onChangeText={setCaption}
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+
+          <TouchableOpacity 
+            style={[
+              styles.postButton,
+              (!image || !caption.trim()) && styles.postButtonDisabled
+            ]}
+            onPress={handlePost}
+            disabled={!image || !caption.trim()}
+          >
+            <Text style={styles.postButtonText}>Post</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+      
+      <TabForAllPages />
+    </View>
   );
 };
 
 export default PostCreation;
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#FBFFE4',
+  },
   container: {
     flex: 1,
     backgroundColor: '#FBFFE4',

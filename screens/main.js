@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar } from 'react-native';
 import PostCard from '../components/postCard';
+import TabForAllPages from '../components/tabForAllPages';
 
 
 const POSTS = [
@@ -44,22 +45,26 @@ const POSTS = [
 
 const Main = () => {
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar backgroundColor="#FBFFE4" barStyle="dark-content" />
       
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Main Screen</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <Text style={styles.headerText}>Main Screen</Text>
+        </View>
+        
+        <ScrollView 
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+        >
+          {POSTS.map(post => (
+            <PostCard key={post.id} post={post} />
+          ))}
+        </ScrollView>
+      </SafeAreaView>
       
-      <ScrollView 
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
-        {POSTS.map(post => (
-          <PostCard key={post.id} post={post} />
-        ))}
-      </ScrollView>
-    </SafeAreaView>
+      <TabForAllPages />
+    </View>
   );
 };
 
@@ -67,6 +72,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FBFFE4',
+  },
+  safeArea: {
+    flex: 1,
   },
   header: {
     height: 60,

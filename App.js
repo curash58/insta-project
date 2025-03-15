@@ -17,9 +17,9 @@ const App = () => {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        {/* Change screen here for testing */}
+        {/* Change screen here for testing all screens */}
         <Stack.Navigator 
-          initialRouteName="ProfileUserLook"
+          initialRouteName="Main"
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: '#FBFFE4' },

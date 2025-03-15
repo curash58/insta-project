@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import TabForAllPages from '../components/tabForAllPages';
 
 const { width } = Dimensions.get('window');
 const numColumns = 3;
@@ -45,53 +46,58 @@ const ProfileUserLook = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.usernameHeader}>Username</Text>
-      
-      <View style={styles.profileSection}>
-        <Image 
-          source={{ uri: 'https://picsum.photos/200/200?random=otherprofile' }} 
-          style={styles.profileImage}
-        />
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <Text style={styles.usernameHeader}>Username</Text>
         
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>82</Text>
-            <Text style={styles.statLabel}>posts</Text>
+        <View style={styles.profileSection}>
+          <Image 
+            source={{ uri: 'https://picsum.photos/200/200?random=otherprofile' }} 
+            style={styles.profileImage}
+          />
+          
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>82</Text>
+              <Text style={styles.statLabel}>posts</Text>
+            </View>
+            
+            <TouchableOpacity style={styles.statItem} onPress={navigateToFollowers}>
+              <Text style={styles.statNumber}>150</Text>
+              <Text style={styles.statLabel}>followers</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.statItem} onPress={navigateToFollowing}>
+              <Text style={styles.statNumber}>250</Text>
+              <Text style={styles.statLabel}>following</Text>
+            </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity style={styles.statItem} onPress={navigateToFollowers}>
-            <Text style={styles.statNumber}>150</Text>
-            <Text style={styles.statLabel}>followers</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.statItem} onPress={navigateToFollowing}>
-            <Text style={styles.statNumber}>250</Text>
-            <Text style={styles.statLabel}>following</Text>
+        </View>
+        
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity 
+            style={[
+              styles.followButton, 
+              isFollowing ? styles.followingButton : styles.notFollowingButton
+            ]}
+            onPress={toggleFollow}
+          >
+            <Text style={styles.buttonText}>{isFollowing ? 'unfollow' : 'follow'}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+        
+        <FlatList
+          data={POSTS}
+          renderItem={renderPost}
+          keyExtractor={item => item.id}
+          numColumns={numColumns}
+          contentContainerStyle={styles.postsGrid}
+          showsVerticalScrollIndicator={false}
+        />
+      </SafeAreaView>
       
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={[
-            styles.followButton, 
-            isFollowing ? styles.followingButton : styles.notFollowingButton
-          ]}
-          onPress={toggleFollow}
-        >
-          <Text style={styles.buttonText}>{isFollowing ? 'unfollow' : 'follow'}</Text>
-        </TouchableOpacity>
-      </View>
-      
-      <FlatList
-        data={POSTS}
-        renderItem={renderPost}
-        keyExtractor={item => item.id}
-        numColumns={numColumns}
-        contentContainerStyle={styles.postsGrid}
-      />
-    </SafeAreaView>
+      <TabForAllPages />
+    </View>
   );
 };
 
@@ -99,6 +105,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FBFFE4',
+  },
+  safeArea: {
+    flex: 1,
   },
   usernameHeader: {
     fontSize: 24,
