@@ -7,6 +7,7 @@ import Login from './screens/logIn';
 import SignIn from './screens/signIn';
 import FollowersFollowing from './screens/followersFollowing';
 import PostCreation from './screens/postCreation';
+import Main from './screens/main';
 
 const Stack = createNativeStackNavigator();
 
@@ -14,8 +15,9 @@ const App = () => {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
+        {/* Change screen here for testing */}
         <Stack.Navigator 
-          initialRouteName="PostCreation"
+          initialRouteName="Main"
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: '#FBFFE4' },
@@ -31,6 +33,13 @@ const App = () => {
           <Stack.Screen 
             name="SignIn" 
             component={SignIn}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen 
+            name="Main" 
+            component={Main}
             options={{
               headerShown: false,
             }}
