@@ -1,31 +1,51 @@
 import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
 const PostCard = ({ post }) => {
   const [liked, setLiked] = useState(false);
+  const navigation = useNavigation();
 
   const handleLike = () => {
     setLiked(!liked);
   };
 
+  const navigateToProfile = () => {
+    navigation.navigate('ProfileUserLook', { userId: post.id });
+  };
+
+  const navigateToPost = () => {
+    // Navigate to the dedicated post page
+    navigation.navigate('PostPage', { post });
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.userInfoContainer}>
+      <TouchableOpacity 
+        style={styles.userInfoContainer}
+        onPress={navigateToProfile}
+        activeOpacity={0.7}
+      >
         <Image 
           source={{ uri: post.userProfileImage }} 
           style={styles.profileImage} 
         />
         <Text style={styles.username}>{post.username}</Text>
-      </View>
+      </TouchableOpacity>
 
-      <Image 
-        source={{ uri: post.imageUrl }} 
-        style={styles.postImage} 
-        resizeMode="cover"
-      />
+      <TouchableOpacity 
+        activeOpacity={0.95}
+        onPress={navigateToPost}
+      >
+        <Image 
+          source={{ uri: post.imageUrl }} 
+          style={styles.postImage} 
+          resizeMode="cover"
+        />
+      </TouchableOpacity>
 
       <View style={styles.actionsContainer}>
         <View style={styles.actionsRow}>
@@ -38,7 +58,10 @@ const PostCard = ({ post }) => {
             <Text style={styles.actionText}>{post.likesCount} likes</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity 
+            style={styles.actionButton} 
+            onPress={navigateToPost}
+          >
             <Ionicons name="chatbubble-outline" size={24} color="#3D8D7A" />
             <Text style={styles.actionText}>{post.commentsCount} comments</Text>
           </TouchableOpacity>
@@ -46,8 +69,17 @@ const PostCard = ({ post }) => {
       </View>
 
       <View style={styles.captionContainer}>
+        <Text style={styles.username}>{post.username}</Text>
         <Text style={styles.captionText}>{post.caption}</Text>
       </View>
+      
+      {/* Preview comments - just a hint to tap and see more */}
+      <TouchableOpacity 
+        style={styles.viewCommentsButton} 
+        onPress={navigateToPost}
+      >
+        <Text style={styles.viewCommentsText}>View all comments</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -106,6 +138,16 @@ const styles = StyleSheet.create({
   captionText: {
     color: '#3D8D7A',
     fontSize: 16,
+    marginTop: 4,
+  },
+  viewCommentsButton: {
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+  viewCommentsText: {
+    color: '#A3D1C6',
+    fontSize: 14,
+    fontWeight: '500',
   }
 });
 

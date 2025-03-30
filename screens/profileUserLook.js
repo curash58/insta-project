@@ -2,15 +2,22 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import TabForAllPages from '../components/tabForAllPages';
 
 const { width } = Dimensions.get('window');
 const numColumns = 3;
 const tileSize = width / numColumns;
 
+// Enhanced post data with necessary information for the PostPage
 const POSTS = Array(20).fill().map((_, index) => ({
   id: index.toString(),
-  imageUrl: `https://picsum.photos/500/500?random=${100 + index}`
+  username: 'username',
+  userProfileImage: 'https://picsum.photos/200/200?random=otherprofile',
+  imageUrl: `https://picsum.photos/500/500?random=${100 + index}`,
+  caption: `This is post ${index} from another user's profile`,
+  likesCount: Math.floor(Math.random() * 500),
+  commentsCount: Math.floor(Math.random() * 100)
 }));
 
 const ProfileUserLook = () => {
@@ -18,7 +25,13 @@ const ProfileUserLook = () => {
   const [isFollowing, setIsFollowing] = useState(false);
 
   const handlePostPress = (postId) => {
-    console.log('Navigate to post:', postId);
+    // Find the post data by id
+    const postData = POSTS.find(post => post.id === postId);
+    
+    // Navigate to the PostPage with the full post data
+    if (postData) {
+      navigation.navigate('PostPage', { post: postData });
+    }
   };
 
   const navigateToFollowers = () => {
@@ -33,10 +46,15 @@ const ProfileUserLook = () => {
     setIsFollowing(!isFollowing);
   };
 
+  const handleGoBack = () => {
+    navigation.goBack();
+  };
+
   const renderPost = ({ item }) => (
     <TouchableOpacity 
       style={styles.postTile}
       onPress={() => handlePostPress(item.id)}
+      activeOpacity={0.8}
     >
       <Image 
         source={{ uri: item.imageUrl }} 
@@ -48,7 +66,13 @@ const ProfileUserLook = () => {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <Text style={styles.usernameHeader}>Username</Text>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#3D8D7A" />
+          </TouchableOpacity>
+          <Text style={styles.usernameHeader}>Username</Text>
+          <View style={styles.placeholder} />
+        </View>
         
         <View style={styles.profileSection}>
           <Image 
@@ -81,19 +105,24 @@ const ProfileUserLook = () => {
               isFollowing ? styles.followingButton : styles.notFollowingButton
             ]}
             onPress={toggleFollow}
+            activeOpacity={0.8}
           >
-            <Text style={styles.buttonText}>{isFollowing ? 'unfollow' : 'follow'}</Text>
+            <Text style={styles.buttonText}>
+              {isFollowing ? 'Following' : 'Follow'}
+            </Text>
           </TouchableOpacity>
         </View>
         
-        <FlatList
-          data={POSTS}
-          renderItem={renderPost}
-          keyExtractor={item => item.id}
-          numColumns={numColumns}
-          contentContainerStyle={styles.postsGrid}
-          showsVerticalScrollIndicator={false}
-        />
+        <View style={styles.postsContainer}>
+          <FlatList
+            data={POSTS}
+            renderItem={renderPost}
+            keyExtractor={item => item.id}
+            numColumns={numColumns}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.postsGrid}
+          />
+        </View>
       </SafeAreaView>
       
       <TabForAllPages />
@@ -109,22 +138,38 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingTop: 15,
+    paddingBottom: 10,
+  },
+  backButton: {
+    padding: 5,
+  },
+  placeholder: {
+    width: 34,
+  },
   usernameHeader: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#3D8D7A',
-    padding: 15,
+    textAlign: 'center',
   },
   profileSection: {
     flexDirection: 'row',
     paddingHorizontal: 15,
-    paddingBottom: 20,
+    paddingBottom: 15,
     alignItems: 'center',
   },
   profileImage: {
     width: 100,
     height: 100,
     borderRadius: 50,
+    borderWidth: 3,
+    borderColor: '#3D8D7A',
   },
   statsContainer: {
     flex: 1,
@@ -145,13 +190,17 @@ const styles = StyleSheet.create({
     color: '#3D8D7A',
   },
   buttonContainer: {
+    flexDirection: 'row',
     paddingHorizontal: 15,
-    paddingBottom: 20,
+    paddingBottom: 15,
+    justifyContent: 'space-between',
   },
   followButton: {
-    borderRadius: 5,
+    borderRadius: 8,
     padding: 10,
     alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
   },
   notFollowingButton: {
     backgroundColor: '#3D8D7A',
@@ -159,17 +208,32 @@ const styles = StyleSheet.create({
   followingButton: {
     backgroundColor: '#A3D1C6',
   },
+  messageButton: {
+    backgroundColor: '#3D8D7A',
+    borderRadius: 8,
+    padding: 10,
+    flex: 0.48,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  buttonIcon: {
+    marginRight: 6,
+  },
   buttonText: {
     color: '#FBFFE4',
     fontWeight: 'bold',
     fontSize: 16,
   },
+  postsContainer: {
+  },
   postsGrid: {
-    paddingBottom: 20,
+    paddingBottom: 5,
   },
   postTile: {
     width: tileSize,
     height: tileSize,
+    padding: 1,
   },
   postImage: {
     width: '100%',

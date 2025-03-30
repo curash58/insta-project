@@ -10,6 +10,9 @@ import PostCreation from './screens/postCreation';
 import Main from './screens/main';
 import ProfileUser from './screens/profileUser';
 import ProfileUserLook from './screens/profileUserLook';
+import PostPage from './screens/postPage';
+import Settings from './screens/settings';
+import SavedPosts from './screens/savedPosts';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,7 +22,7 @@ const App = () => {
       <NavigationContainer>
         {/* Change screen here for testing all screens */}
         <Stack.Navigator 
-          initialRouteName="Main"
+          initialRouteName="Login"
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: '#FBFFE4' },
@@ -70,6 +73,27 @@ const App = () => {
           <Stack.Screen 
             name="PostCreation" 
             component={PostCreation}
+            options={{
+              headerShown: false,
+            }}  
+          />
+          <Stack.Screen 
+            name="PostPage" 
+            component={PostPage}
+            options={{
+              headerShown: false,
+            }}  
+          />
+          <Stack.Screen 
+            name="Settings" 
+            component={Settings}
+            options={{
+              headerShown: false,
+            }}  
+          />
+          <Stack.Screen 
+            name="SavedPosts" 
+            component={SavedPosts}
             options={{
               headerShown: false,
             }}  

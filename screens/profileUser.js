@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Dimensions, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import TabForAllPages from '../components/tabForAllPages';
 
 const { width } = Dimensions.get('window');
@@ -10,14 +11,25 @@ const tileSize = width / numColumns;
 
 const POSTS = Array(20).fill().map((_, index) => ({
   id: index.toString(),
-  imageUrl: `https://picsum.photos/500/500?random=${index}`
+  username: 'username',
+  userProfileImage: 'https://picsum.photos/200/200?random=profile',
+  imageUrl: `https://picsum.photos/500/500?random=${index}`,
+  caption: `This is post ${index}`,
+  likesCount: Math.floor(Math.random() * 500),
+  commentsCount: Math.floor(Math.random() * 100)
 }));
 
 const ProfileUser = () => {
   const navigation = useNavigation();
 
   const handlePostPress = (postId) => {
-    console.log('Navigate to post:', postId);
+    // Find the post data by id
+    const postData = POSTS.find(post => post.id === postId);
+    
+    // Navigate to the PostPage with the full post data
+    if (postData) {
+      navigation.navigate('PostPage', { post: postData });
+    }
   };
 
   const navigateToFollowers = () => {
@@ -28,10 +40,19 @@ const ProfileUser = () => {
     navigation.navigate('FollowersFollowing', { type: 'following' });
   };
 
+  const navigateToSettings = () => {
+    navigation.navigate('Settings');
+  };
+
+  const navigateToSavedPosts = () => {
+    navigation.navigate('SavedPosts');
+  };
+
   const renderPost = ({ item }) => (
     <TouchableOpacity 
       style={styles.postTile}
       onPress={() => handlePostPress(item.id)}
+      activeOpacity={0.8}
     >
       <Image 
         source={{ uri: item.imageUrl }} 
@@ -43,7 +64,12 @@ const ProfileUser = () => {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <Text style={styles.usernameHeader}>Username</Text>
+        <View style={styles.header}>
+          <Text style={styles.usernameHeader}>Username</Text>
+          <TouchableOpacity onPress={navigateToSettings}>
+            <Ionicons name="settings-outline" size={24} color="#3D8D7A" />
+          </TouchableOpacity>
+        </View>
         
         <View style={styles.profileSection}>
           <Image 
@@ -70,23 +96,27 @@ const ProfileUser = () => {
         </View>
         
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button}>
-            <Text style={styles.buttonText}>settings</Text>
+          <TouchableOpacity style={styles.button} onPress={navigateToSettings}>
+            <Ionicons name="settings-outline" size={18} color="#FBFFE4" style={styles.buttonIcon} />
+            <Text style={styles.buttonText}>Settings</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.button}>
-            <Text style={styles.buttonText}>saved posts</Text>
+          <TouchableOpacity style={styles.button} onPress={navigateToSavedPosts}>
+            <Ionicons name="bookmark-outline" size={18} color="#FBFFE4" style={styles.buttonIcon} />
+            <Text style={styles.buttonText}>Saved Posts</Text>
           </TouchableOpacity>
         </View>
         
-        <FlatList
-          data={POSTS}
-          renderItem={renderPost}
-          keyExtractor={item => item.id}
-          numColumns={numColumns}
-          contentContainerStyle={styles.postsGrid}
-          showsVerticalScrollIndicator={false}
-        />
+        <View style={styles.postsContainer}>
+          <FlatList
+            data={POSTS}
+            renderItem={renderPost}
+            keyExtractor={item => item.id}
+            numColumns={numColumns}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.postsGrid}
+          />
+        </View>
       </SafeAreaView>
       
       <TabForAllPages />
@@ -102,22 +132,31 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingTop: 15,
+    paddingBottom: 10,
+  },
   usernameHeader: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#3D8D7A',
-    padding: 15,
   },
   profileSection: {
     flexDirection: 'row',
     paddingHorizontal: 15,
-    paddingBottom: 20,
+    paddingBottom: 15,
     alignItems: 'center',
   },
   profileImage: {
     width: 100,
     height: 100,
     borderRadius: 50,
+    borderWidth: 3,
+    borderColor: '#3D8D7A',
   },
   statsContainer: {
     flex: 1,
@@ -140,15 +179,20 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     paddingHorizontal: 15,
-    paddingBottom: 20,
+    paddingBottom: 15,
     justifyContent: 'space-between',
   },
   button: {
     backgroundColor: '#3D8D7A',
-    borderRadius: 5,
+    borderRadius: 8,
     padding: 10,
     flex: 0.48,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  buttonIcon: {
+    marginRight: 6,
   },
   buttonText: {
     color: '#FBFFE4',
@@ -156,11 +200,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   postsGrid: {
-    paddingBottom: 20,
+    paddingBottom: 5,
   },
   postTile: {
     width: tileSize,
     height: tileSize,
+    padding: 1,
   },
   postImage: {
     width: '100%',

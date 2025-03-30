@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, Keyboard } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -73,11 +73,18 @@ const FollowersFollowing = () => {
 
   const renderFollower = ({ item }) => (
     <View style={styles.followerItem}>
-      <Image 
-        source={{ uri: item.image }} 
-        style={styles.followerImage}
-      />
-      <Text style={styles.followerName}>{item.name}</Text>
+      <TouchableOpacity 
+        style={styles.profileSection}
+        activeOpacity={0.7}
+        onPress={() => navigation.navigate('ProfileUserLook')}
+      >
+        <Image 
+          source={{ uri: item.image }} 
+          style={styles.followerImage}
+        />
+        <Text style={styles.followerName}>{item.name}</Text>
+      </TouchableOpacity>
+      
       <TouchableOpacity 
         style={[
           styles.followButton,
@@ -103,7 +110,7 @@ const FollowersFollowing = () => {
           onPress={goBack}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={24} color="#3D8D7A" />
+          <Ionicons name="arrow-back" size={24} color="#FBFFE4" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.title}>Followers</Text>
@@ -116,6 +123,7 @@ const FollowersFollowing = () => {
         keyExtractor={item => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
+        onScrollBeginDrag={() => Keyboard.dismiss()}
       />
     </SafeAreaView>
   );
@@ -129,12 +137,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FBFFE4',
   },
   header: {
-    padding: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#B3D8A8',
+    padding: 15,
+    backgroundColor: '#3D8D7A',
     flexDirection: 'row',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   backButton: {
     padding: 5,
@@ -146,15 +157,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#3D8D7A',
+    color: '#FBFFE4',
     marginBottom: 5,
   },
   subtitle: {
     fontSize: 16,
-    color: '#A3D1C6',
+    color: '#FBFFE4',
+    opacity: 0.8,
   },
   listContainer: {
     padding: 15,
+    paddingBottom: 80, // Extra padding to ensure content doesn't go behind tab bar
   },
   followerItem: {
     flexDirection: 'row',
@@ -163,17 +176,26 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 15,
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#B3D8A8',
+    shadowColor: '#3D8D7A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  profileSection: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   followerImage: {
     width: 50,
     height: 50,
     borderRadius: 25,
     marginRight: 15,
+    borderWidth: 2,
+    borderColor: '#3D8D7A',
   },
   followerName: {
-    flex: 1,
     fontSize: 16,
     color: '#3D8D7A',
     fontWeight: '500',
@@ -188,7 +210,7 @@ const styles = StyleSheet.create({
   },
   followingButton: {
     backgroundColor: '#fff',
-    borderColor: '#B3D8A8',
+    borderColor: '#3D8D7A',
   },
   followButtonText: {
     color: '#FBFFE4',

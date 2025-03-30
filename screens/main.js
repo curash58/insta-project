@@ -1,8 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar, Image, TouchableOpacity, Keyboard } from 'react-native';
 import PostCard from '../components/postCard';
 import TabForAllPages from '../components/tabForAllPages';
-
 
 const POSTS = [
   {
@@ -50,12 +49,14 @@ const Main = () => {
       
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <Text style={styles.headerText}>Main Screen</Text>
+          <Text style={styles.logoText}>Main Screen</Text>
         </View>
         
         <ScrollView 
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          onScrollBeginDrag={() => Keyboard.dismiss()}
         >
           {POSTS.map(post => (
             <PostCard key={post.id} post={post} />
@@ -78,17 +79,39 @@ const styles = StyleSheet.create({
   },
   header: {
     height: 60,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#3D8D7A',
+    paddingHorizontal: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  headerText: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  logoText: {
+    fontSize: 28,
+    fontWeight: '700',
     color: '#FBFFE4',
+    textAlign: 'center',
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconButton: {
+    padding: 5,
+  },
+  iconSpace: {
+    marginRight: 15,
   },
   scrollView: {
     flex: 1,
+    paddingTop: 10,
+  },
+  scrollContent: {
+    paddingBottom: 80,
   },
 });
 
