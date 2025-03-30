@@ -1,6 +1,8 @@
 import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 const dummyFollowers = [
   {
@@ -55,6 +57,7 @@ const dummyFollowers = [
 
 const FollowersFollowing = () => {
   const [followers, setFollowers] = useState(dummyFollowers);
+  const navigation = useNavigation();
 
   const toggleFollow = (id) => {
     setFollowers(followers.map(follower => 
@@ -62,6 +65,10 @@ const FollowersFollowing = () => {
         ? { ...follower, isFollowing: !follower.isFollowing }
         : follower
     ));
+  };
+
+  const goBack = () => {
+    navigation.goBack();
   };
 
   const renderFollower = ({ item }) => (
@@ -91,8 +98,17 @@ const FollowersFollowing = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Followers</Text>
-        <Text style={styles.subtitle}>{followers.length} followers</Text>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={goBack}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={24} color="#3D8D7A" />
+        </TouchableOpacity>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.title}>Followers</Text>
+          <Text style={styles.subtitle}>{followers.length} followers</Text>
+        </View>
       </View>
       <FlatList
         data={followers}
@@ -117,6 +133,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#B3D8A8',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    padding: 5,
+    marginRight: 15,
+  },
+  headerTitleContainer: {
+    flex: 1,
   },
   title: {
     fontSize: 24,
