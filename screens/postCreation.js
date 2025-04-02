@@ -1,16 +1,17 @@
-import { StyleSheet, Text, View, Image, TouchableOpacity, TextInput, Alert, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, TextInput, Alert, ScrollView, KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import TabForAllPages from '../components/tabForAllPages';
 import { useNavigation } from '@react-navigation/native';
+import { createPost } from '../lib/firebase/posts';
+import { getCurrentUser } from '../lib/firebase/auth';
 
 const PostCreation = () => {
   const [image, setImage] = useState(null);
   const [caption, setCaption] = useState('');
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation();
 
   const pickImage = async () => {
@@ -33,23 +34,7 @@ const PostCreation = () => {
     }
   };
 
-  const generateAIImage = () => {
-    if (!aiPrompt.trim()) {
-      Alert.alert('Error', 'Please enter a prompt for the AI image generation');
-      return;
-    }
-
-    setIsGeneratingImage(true);
-    // random photo for now
-    setTimeout(() => {
-      const randomId = Math.floor(Math.random() * 1000);
-      setImage(`https://picsum.photos/500/500?random=${randomId}`);
-      setIsGeneratingImage(false);
-      Alert.alert('Success', 'Image generated successfully!');
-    }, 1500);
-  };
-
-  const handlePost = () => {
+  const handlePost = async () => {
     if (!image) {
       Alert.alert('Error', 'Please select an image first');
       return;
@@ -58,26 +43,34 @@ const PostCreation = () => {
       Alert.alert('Error', 'Please add a caption');
       return;
     }
-    
-    // Create a new post object
-    const newPost = {
-      id: Math.random().toString(),
-      username: 'current_user',
-      userProfileImage: 'https://randomuser.me/api/portraits/men/88.jpg',
-      imageUrl: image,
-      likesCount: 0,
-      commentsCount: 0,
-      caption: caption,
-      createdAt: new Date().toISOString()
-    };
-    
-    // Navigate to the PostPage with the new post
-    navigation.navigate('PostPage', { post: newPost });
-    
-    // Reset the form
-    setImage(null);
-    setCaption('');
-    setAiPrompt('');
+
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      Alert.alert('Error', 'You must be logged in to create a post');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await createPost(currentUser.uid, {
+        caption: caption.trim()
+      }, image);
+
+      if (result.success) {
+        Alert.alert('Success', 'Post created successfully!');
+        // Reset the form
+        setImage(null);
+        setCaption('');
+        // Navigate back to the previous screen
+        navigation.goBack();
+      } else {
+        Alert.alert('Error', result.error || 'Failed to create post');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -113,38 +106,6 @@ const PostCreation = () => {
               )}
             </TouchableOpacity>
 
-            <View style={styles.aiGenerationSection}>
-              <Text style={styles.sectionTitle}>Generate AI Image</Text>
-              <View style={styles.aiInputContainer}>
-                <TextInput
-                  style={styles.aiPromptInput}
-                  placeholder="Enter a prompt for AI image generation..."
-                  placeholderTextColor="#A3D1C6"
-                  value={aiPrompt}
-                  onChangeText={setAiPrompt}
-                  multiline
-                  numberOfLines={2}
-                />
-                <TouchableOpacity 
-                  style={[
-                    styles.generateButton,
-                    (!aiPrompt.trim() || isGeneratingImage) && styles.disabledButton
-                  ]}
-                  onPress={generateAIImage}
-                  disabled={!aiPrompt.trim() || isGeneratingImage}
-                >
-                  {isGeneratingImage ? (
-                    <Text style={styles.buttonText}>Generating...</Text>
-                  ) : (
-                    <>
-                      <Ionicons name="color-wand-outline" size={20} color="#FBFFE4" style={styles.buttonIcon} />
-                      <Text style={styles.buttonText}>Generate</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-
             <View style={styles.captionContainer}>
               <Text style={styles.sectionTitle}>Caption</Text>
               <TextInput
@@ -161,12 +122,16 @@ const PostCreation = () => {
             <TouchableOpacity 
               style={[
                 styles.postButton,
-                (!image || !caption.trim()) && styles.postButtonDisabled
+                (!image || !caption.trim() || isLoading) && styles.postButtonDisabled
               ]}
               onPress={handlePost}
-              disabled={!image || !caption.trim()}
+              disabled={!image || !caption.trim() || isLoading}
             >
-              <Text style={styles.postButtonText}>Post</Text>
+              {isLoading ? (
+                <ActivityIndicator color="#FBFFE4" />
+              ) : (
+                <Text style={styles.postButtonText}>Post</Text>
+              )}
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -250,43 +215,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#3D8D7A',
     marginBottom: 10,
-  },
-  aiGenerationSection: {
-    marginBottom: 20,
-  },
-  aiInputContainer: {
-    flexDirection: 'column',
-  },
-  aiPromptInput: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: '#B3D8A8',
-    padding: 15,
-    fontSize: 16,
-    color: '#3D8D7A',
-    textAlignVertical: 'top',
-    minHeight: 80,
-    marginBottom: 10,
-  },
-  generateButton: {
-    backgroundColor: '#3D8D7A',
-    padding: 12,
-    borderRadius: 15,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  disabledButton: {
-    backgroundColor: '#A3D1C6',
-  },
-  buttonIcon: {
-    marginRight: 8,
-  },
-  buttonText: {
-    color: '#FBFFE4',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   captionContainer: {
     marginBottom: 20,
