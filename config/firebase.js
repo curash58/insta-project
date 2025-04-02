@@ -1,7 +1,8 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+// import { initializeFirestoreWithSettings } from "../lib/firebase/firestore-init"; We can survive without this one
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
