@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import TabForAllPages from '../components/tabForAllPages';
 import * as ImagePicker from 'expo-image-picker';
-import { logoutUser, getCurrentUser } from '../lib/firebase/auth';
+import { logoutUser, getCurrentUser, updateUserProfile } from '../lib/firebase/auth';
 import { getUserById } from '../lib/firebase/users';
 
 const Settings = () => {
@@ -14,14 +14,13 @@ const Settings = () => {
   const [email, setEmail] = useState('user@example.com');
   const [profileImage, setProfileImage] = useState('https://picsum.photos/200/200?random=profile');
   const [isLoading, setIsLoading] = useState(false);
+  const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
   
-  const [isUsernameModalVisible, setIsUsernameModalVisible] = useState(false);
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
   const [isEmailModalVisible, setIsEmailModalVisible] = useState(false);
   const [isDeleteAccountModalVisible, setIsDeleteAccountModalVisible] = useState(false);
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
   
-  const [newUsername, setNewUsername] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -29,7 +28,6 @@ const Settings = () => {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
   useEffect(() => {
-    // Fetch user data when the component mounts
     fetchUserData();
   }, []);
 
@@ -72,26 +70,29 @@ const Settings = () => {
       });
 
       if (!result.canceled) {
-        setProfileImage(result.assets[0].uri);
-        setIsAvatarModalVisible(false);
-        Alert.alert('Success', 'Profile picture updated successfully!');
+        setIsUpdatingPhoto(true);
+        try {
+          const updateResult = await updateUserProfile({
+            photoURL: result.assets[0].uri
+          });
+
+          if (updateResult.success) {
+            setProfileImage(result.assets[0].uri);
+            Alert.alert('Success', 'Profile picture updated successfully!');
+          } else {
+            Alert.alert('Error', updateResult.error || 'Failed to update profile picture');
+          }
+        } catch (error) {
+          Alert.alert('Error', 'Failed to update profile picture');
+        } finally {
+          setIsUpdatingPhoto(false);
+          setIsAvatarModalVisible(false);
+        }
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to update profile picture');
+      setIsUpdatingPhoto(false);
     }
-  };
-
-  const updateUsername = () => {
-    if (!newUsername.trim()) {
-      Alert.alert('Error', 'Please enter a username');
-      return;
-    }
-    
-    // Here you would call your API to update the username
-    setUsername(newUsername);
-    setNewUsername('');
-    setIsUsernameModalVisible(false);
-    Alert.alert('Success', 'Username updated successfully!');
   };
 
   const updatePassword = () => {
@@ -203,17 +204,6 @@ const Settings = () => {
             
             <TouchableOpacity 
               style={styles.settingItem}
-              onPress={() => setIsUsernameModalVisible(true)}
-            >
-              <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Username</Text>
-                <Text style={styles.settingValue}>{username}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#3D8D7A" />
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.settingItem}
               onPress={() => setIsPasswordModalVisible(true)}
             >
               <View style={styles.settingInfo}>
@@ -284,56 +274,27 @@ const Settings = () => {
               <TouchableOpacity 
                 style={styles.actionButton}
                 onPress={pickImage}
+                disabled={isUpdatingPhoto}
               >
-                <Ionicons name="image-outline" size={20} color="#FBFFE4" style={styles.buttonIcon} />
-                <Text style={styles.buttonText}>Choose from Gallery</Text>
+                {isUpdatingPhoto ? (
+                  <ActivityIndicator color="#FBFFE4" />
+                ) : (
+                  <>
+                    <Ionicons name="image-outline" size={20} color="#FBFFE4" style={styles.buttonIcon} />
+                    <Text style={styles.buttonText}>Choose from Gallery</Text>
+                  </>
+                )}
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={[styles.actionButton, styles.secondaryButton]}
                 onPress={() => setIsAvatarModalVisible(false)}
+                disabled={isUpdatingPhoto}
               >
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-
-        {/* Username Modal */}
-        <Modal
-          visible={isUsernameModalVisible}
-          animationType="slide"
-          transparent
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.centeredView}
-          >
-            <View style={styles.modalView}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Change Username</Text>
-                <TouchableOpacity onPress={() => setIsUsernameModalVisible(false)}>
-                  <Ionicons name="close" size={24} color="#3D8D7A" />
-                </TouchableOpacity>
-              </View>
-              
-              <Text style={styles.inputLabel}>New Username</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter new username"
-                placeholderTextColor="#A3D1C6"
-                value={newUsername}
-                onChangeText={setNewUsername}
-              />
-              
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={updateUsername}
-              >
-                <Text style={styles.buttonText}>Update Username</Text>
-              </TouchableOpacity>
-            </View>
-          </KeyboardAvoidingView>
         </Modal>
 
         <Modal
@@ -393,7 +354,6 @@ const Settings = () => {
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* Email Modal */}
         <Modal
           visible={isEmailModalVisible}
           animationType="slide"
@@ -432,7 +392,6 @@ const Settings = () => {
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* Delete Account Modal */}
         <Modal
           visible={isDeleteAccountModalVisible}
           animationType="slide"

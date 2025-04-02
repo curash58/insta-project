@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import TabForAllPages from '../components/tabForAllPages';
 import { getUserPosts } from '../lib/firebase/posts';
 import { getCurrentUser } from '../lib/firebase/auth';
+import { getUserById } from '../lib/firebase/users';
 
 const { width } = Dimensions.get('window');
 const numColumns = 3;
@@ -16,12 +17,13 @@ const ProfileUser = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userData, setUserData] = useState(null);
 
   useEffect(() => {
-    fetchUserPosts();
+    fetchUserData();
   }, []);
 
-  const fetchUserPosts = async () => {
+  const fetchUserData = async () => {
     try {
       const currentUser = getCurrentUser();
       if (!currentUser) {
@@ -30,6 +32,13 @@ const ProfileUser = () => {
         return;
       }
 
+      // Fetch user data including profile picture
+      const userResult = await getUserById(currentUser.uid);
+      if (userResult.success) {
+        setUserData(userResult.user);
+      }
+
+      // Fetch user posts
       const result = await getUserPosts(currentUser.uid);
       if (result.success) {
         setPosts(result.posts);
@@ -99,7 +108,7 @@ const ProfileUser = () => {
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <Text style={styles.usernameHeader}>Username</Text>
+          <Text style={styles.usernameHeader}>{userData?.username || 'Username'}</Text>
           <TouchableOpacity onPress={navigateToSettings}>
             <Ionicons name="settings-outline" size={24} color="#3D8D7A" />
           </TouchableOpacity>
@@ -107,7 +116,9 @@ const ProfileUser = () => {
         
         <View style={styles.profileSection}>
           <Image 
-            source={{ uri: 'https://picsum.photos/200/200?random=profile' }} 
+            source={{ 
+              uri: userData?.photoURL || 'https://picsum.photos/200/200?random=profile'
+            }} 
             style={styles.profileImage}
           />
           
@@ -118,12 +129,12 @@ const ProfileUser = () => {
             </View>
             
             <TouchableOpacity style={styles.statItem} onPress={navigateToFollowers}>
-              <Text style={styles.statNumber}>150</Text>
+              <Text style={styles.statNumber}>{userData?.followers?.length || 0}</Text>
               <Text style={styles.statLabel}>followers</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.statItem} onPress={navigateToFollowing}>
-              <Text style={styles.statNumber}>250</Text>
+              <Text style={styles.statNumber}>{userData?.following?.length || 0}</Text>
               <Text style={styles.statLabel}>following</Text>
             </TouchableOpacity>
           </View>
