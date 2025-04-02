@@ -1,24 +1,54 @@
-import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { likePost, unlikePost } from '../lib/firebase/posts';
+import { getCurrentUser } from '../lib/firebase/auth';
 
 const { width } = Dimensions.get('window');
 
 const PostCard = ({ post }) => {
   const [liked, setLiked] = useState(false);
   const navigation = useNavigation();
+  const currentUser = getCurrentUser();
 
-  const handleLike = () => {
-    setLiked(!liked);
+  useEffect(() => {
+    // Check if current user has liked the post
+    if (post && currentUser) {
+      setLiked(post.likes?.includes(currentUser.uid) || false);
+    }
+  }, [post, currentUser]);
+
+  const handleLike = async () => {
+    if (!currentUser) {
+      Alert.alert('Error', 'You must be logged in to like posts');
+      return;
+    }
+
+    try {
+      const result = liked 
+        ? await unlikePost(post.id, currentUser.uid)
+        : await likePost(post.id, currentUser.uid);
+
+      if (result.success) {
+        setLiked(!liked);
+        // Update post likes count
+        post.likes = liked 
+          ? (post.likes || []).filter(id => id !== currentUser.uid)
+          : [...(post.likes || []), currentUser.uid];
+      } else {
+        Alert.alert('Error', result.error || 'Failed to update like status');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
   };
 
   const navigateToProfile = () => {
-    navigation.navigate('ProfileUserLook', { userId: post.id });
+    navigation.navigate('ProfileUserLook', { userId: post.creatorId });
   };
 
   const navigateToPost = () => {
-    // Navigate to the dedicated post page
     navigation.navigate('PostPage', { post });
   };
 
@@ -41,7 +71,7 @@ const PostCard = ({ post }) => {
         onPress={navigateToPost}
       >
         <Image 
-          source={{ uri: post.imageUrl }} 
+          source={{ uri: post.imageURL }} 
           style={styles.postImage} 
           resizeMode="cover"
         />
@@ -55,7 +85,7 @@ const PostCard = ({ post }) => {
               size={24} 
               color={liked ? "#FF4D67" : "#3D8D7A"} 
             />
-            <Text style={styles.actionText}>{post.likesCount} likes</Text>
+            <Text style={styles.actionText}>{post.likes?.length || 0} likes</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -63,7 +93,7 @@ const PostCard = ({ post }) => {
             onPress={navigateToPost}
           >
             <Ionicons name="chatbubble-outline" size={24} color="#3D8D7A" />
-            <Text style={styles.actionText}>{post.commentsCount} comments</Text>
+            <Text style={styles.actionText}>{post.comments?.length || 0} comments</Text>
           </TouchableOpacity>
         </View>
       </View>

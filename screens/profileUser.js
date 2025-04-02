@@ -1,32 +1,50 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Dimensions, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Dimensions, FlatList, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import TabForAllPages from '../components/tabForAllPages';
+import { getUserPosts } from '../lib/firebase/posts';
+import { getCurrentUser } from '../lib/firebase/auth';
 
 const { width } = Dimensions.get('window');
 const numColumns = 3;
 const tileSize = width / numColumns;
 
-const POSTS = Array(20).fill().map((_, index) => ({
-  id: index.toString(),
-  username: 'username',
-  userProfileImage: 'https://picsum.photos/200/200?random=profile',
-  imageUrl: `https://picsum.photos/500/500?random=${index}`,
-  caption: `This is post ${index}`,
-  likesCount: Math.floor(Math.random() * 500),
-  commentsCount: Math.floor(Math.random() * 100)
-}));
-
 const ProfileUser = () => {
   const navigation = useNavigation();
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchUserPosts();
+  }, []);
+
+  const fetchUserPosts = async () => {
+    try {
+      const currentUser = getCurrentUser();
+      if (!currentUser) {
+        setError('User not logged in');
+        setLoading(false);
+        return;
+      }
+
+      const result = await getUserPosts(currentUser.uid);
+      if (result.success) {
+        setPosts(result.posts);
+      } else {
+        setError(result.error || 'Failed to fetch posts');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePostPress = (postId) => {
-    // Find the post data by id
-    const postData = POSTS.find(post => post.id === postId);
-    
-    // Navigate to the PostPage with the full post data
+    const postData = posts.find(post => post.id === postId);
     if (postData) {
       navigation.navigate('PostPage', { post: postData });
     }
@@ -55,11 +73,27 @@ const ProfileUser = () => {
       activeOpacity={0.8}
     >
       <Image 
-        source={{ uri: item.imageUrl }} 
+        source={{ uri: item.imageURL }} 
         style={styles.postImage}
       />
     </TouchableOpacity>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3D8D7A" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -79,7 +113,7 @@ const ProfileUser = () => {
           
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>82</Text>
+              <Text style={styles.statNumber}>{posts?.length || 0}</Text>
               <Text style={styles.statLabel}>posts</Text>
             </View>
             
@@ -109,7 +143,7 @@ const ProfileUser = () => {
         
         <View style={styles.postsContainer}>
           <FlatList
-            data={POSTS}
+            data={posts || []}
             renderItem={renderPost}
             keyExtractor={item => item.id}
             numColumns={numColumns}
@@ -210,6 +244,23 @@ const styles = StyleSheet.create({
   postImage: {
     width: '100%',
     height: '100%',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FBFFE4',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FBFFE4',
+  },
+  errorText: {
+    color: '#FF4D67',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });
 

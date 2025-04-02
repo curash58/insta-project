@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -12,66 +12,96 @@ import {
   Platform,
   Dimensions,
   ScrollView,
-  Keyboard
+  Keyboard,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { getComments, addComment } from '../lib/firebase/comments';
+import { likePost, unlikePost } from '../lib/firebase/posts';
+import { getCurrentUser } from '../lib/firebase/auth';
 
 const { width } = Dimensions.get('window');
-
-// Sample comments data
-const SAMPLE_COMMENTS = [
-  {
-    id: '1',
-    username: 'sarah_smile',
-    userImage: 'https://randomuser.me/api/portraits/women/22.jpg',
-    text: 'This looks amazing! Love the colors 😍',
-    timeAgo: '2h ago'
-  },
-  {
-    id: '2',
-    username: 'john_doe',
-    userImage: 'https://randomuser.me/api/portraits/men/45.jpg',
-    text: 'Great shot! Where was this taken?',
-    timeAgo: '3h ago'
-  },
-  {
-    id: '3',
-    username: 'travel_explorer',
-    userImage: 'https://randomuser.me/api/portraits/women/38.jpg',
-    text: 'Adding this to my bucket list right now!',
-    timeAgo: '5h ago'
-  }
-];
 
 const PostPage = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { post } = route.params || {};
+  const currentUser = getCurrentUser();
   
   const [liked, setLiked] = useState(false);
   const [comment, setComment] = useState('');
-  const [comments, setComments] = useState(SAMPLE_COMMENTS);
+  const [comments, setComments] = useState([]);
   const [showAllComments, setShowAllComments] = useState(false);
   const [isCommentFocused, setIsCommentFocused] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const handleLike = () => {
-    setLiked(!liked);
+  useEffect(() => {
+    if (post) {
+      fetchComments();
+      // Check if current user has liked the post
+      setLiked(post.likes?.includes(currentUser?.uid) || false);
+    }
+  }, [post]);
+
+  const fetchComments = async () => {
+    try {
+      const result = await getComments(post.id);
+      if (result.success) {
+        setComments(result.comments);
+      } else {
+        setError(result.error || 'Failed to fetch comments');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handlePostComment = () => {
-    if (!comment.trim()) return;
-    
-    const newComment = {
-      id: String(comments.length + 1),
-      username: 'current_user',
-      userImage: 'https://randomuser.me/api/portraits/men/88.jpg',
-      text: comment,
-      timeAgo: 'Just now'
-    };
-    
-    setComments([newComment, ...comments]);
-    setComment('');
+  const handleLike = async () => {
+    if (!currentUser) {
+      Alert.alert('Error', 'You must be logged in to like posts');
+      return;
+    }
+
+    try {
+      const result = liked 
+        ? await unlikePost(post.id, currentUser.uid)
+        : await likePost(post.id, currentUser.uid);
+
+      if (result.success) {
+        setLiked(!liked);
+        // Update post likes count
+        post.likes = liked 
+          ? post.likes.filter(id => id !== currentUser.uid)
+          : [...post.likes, currentUser.uid];
+      } else {
+        Alert.alert('Error', result.error || 'Failed to update like status');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
+  };
+
+  const handlePostComment = async () => {
+    if (!comment.trim() || !currentUser) {
+      Alert.alert('Error', 'You must be logged in to comment');
+      return;
+    }
+
+    try {
+      const result = await addComment(post.id, currentUser.uid, comment.trim());
+      if (result.success) {
+        setComments([result.comment, ...comments]);
+        setComment('');
+      } else {
+        Alert.alert('Error', result.error || 'Failed to post comment');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
   };
 
   const handleGoBack = () => {
@@ -83,11 +113,11 @@ const PostPage = () => {
 
   const renderComment = ({ item }) => (
     <View style={styles.commentContainer}>
-      <Image source={{ uri: item.userImage }} style={styles.commentUserImage} />
+      <Image source={{ uri: item.userProfileImage }} style={styles.commentUserImage} />
       <View style={styles.commentContent}>
         <Text style={styles.commentUsername}>{item.username}</Text>
-        <Text style={styles.commentText}>{item.text}</Text>
-        <Text style={styles.commentTime}>{item.timeAgo}</Text>
+        <Text style={styles.commentText}>{item.message}</Text>
+        <Text style={styles.commentTime}>{new Date(item.timestamp).toLocaleDateString()}</Text>
       </View>
     </View>
   );
@@ -96,6 +126,16 @@ const PostPage = () => {
     return (
       <SafeAreaView style={styles.container}>
         <Text>No post data available</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3D8D7A" />
+        </View>
       </SafeAreaView>
     );
   }
@@ -129,7 +169,7 @@ const PostPage = () => {
           </View>
 
           <Image 
-            source={{ uri: post.imageUrl }} 
+            source={{ uri: post.imageURL }} 
             style={styles.postImage} 
             resizeMode="cover"
           />
@@ -142,12 +182,12 @@ const PostPage = () => {
                   size={24} 
                   color={liked ? "#FF4D67" : "#3D8D7A"} 
                 />
-                <Text style={styles.actionText}>{post.likesCount} likes</Text>
+                <Text style={styles.actionText}>{post.likes?.length || 0} likes</Text>
               </TouchableOpacity>
               
               <TouchableOpacity style={styles.actionButton}>
                 <Ionicons name="chatbubble-outline" size={24} color="#3D8D7A" />
-                <Text style={styles.actionText}>{post.commentsCount} comments</Text>
+                <Text style={styles.actionText}>{comments?.length || 0} comments</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -160,23 +200,23 @@ const PostPage = () => {
           <View style={styles.commentsSection}>
             <Text style={styles.commentsTitle}>Comments</Text>
             
-            {displayComments.map(comment => (
+            {(displayComments || []).map(comment => (
               <View key={comment.id} style={styles.commentContainer}>
-                <Image source={{ uri: comment.userImage }} style={styles.commentUserImage} />
+                <Image source={{ uri: comment.userProfileImage }} style={styles.commentUserImage} />
                 <View style={styles.commentContent}>
                   <Text style={styles.commentUsername}>{comment.username}</Text>
-                  <Text style={styles.commentText}>{comment.text}</Text>
-                  <Text style={styles.commentTime}>{comment.timeAgo}</Text>
+                  <Text style={styles.commentText}>{comment.message}</Text>
+                  <Text style={styles.commentTime}>{new Date(comment.timestamp).toLocaleDateString()}</Text>
                 </View>
               </View>
             ))}
             
-            {comments.length > 2 && !showAllComments && (
+            {(comments?.length || 0) > 2 && !showAllComments && (
               <TouchableOpacity 
                 style={styles.viewMoreButton} 
                 onPress={() => setShowAllComments(true)}
               >
-                <Text style={styles.viewMoreText}>View all {comments.length} comments</Text>
+                <Text style={styles.viewMoreText}>View all {comments?.length || 0} comments</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -184,7 +224,7 @@ const PostPage = () => {
 
         <View style={styles.commentInputContainer}>
           <Image 
-            source={{ uri: 'https://randomuser.me/api/portraits/men/88.jpg' }} 
+            source={{ uri: currentUser?.photoURL || 'https://randomuser.me/api/portraits/men/88.jpg' }} 
             style={styles.currentUserImage} 
           />
           <TextInput
@@ -392,6 +432,11 @@ const styles = StyleSheet.create({
   },
   postButtonTextDisabled: {
     color: '#A3D1C6',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
