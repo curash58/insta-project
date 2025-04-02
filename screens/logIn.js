@@ -1,19 +1,36 @@
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { loginUser } from '../lib/firebase/auth';
 
 const Login = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
-    // if (!email.trim() || !password.trim()) {
-    //   Alert.alert('Error', 'Please fill in all fields');
-    //   return;
-    // }
-    navigation.navigate('Main');
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const result = await loginUser(email, password);
+      
+      if (result.success) {
+        navigation.navigate('Main');
+      } else {
+        Alert.alert('Login Failed', result.error || 'Invalid email or password');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -73,8 +90,16 @@ const Login = ({ navigation }) => {
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.button} onPress={handleLogin}>
-              <Text style={styles.buttonText}>Log In</Text>
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={handleLogin}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#FBFFE4" size="small" />
+              ) : (
+                <Text style={styles.buttonText}>Log In</Text>
+              )}
             </TouchableOpacity>
 
             <View style={styles.divider}>

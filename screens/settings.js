@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ScrollView, Modal, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ScrollView, Modal, KeyboardAvoidingView, Platform, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import TabForAllPages from '../components/tabForAllPages';
 import * as ImagePicker from 'expo-image-picker';
+import { logoutUser, getCurrentUser } from '../lib/firebase/auth';
+import { getUserById } from '../lib/firebase/users';
 
 const Settings = () => {
   const navigation = useNavigation();
   const [username, setUsername] = useState('username');
   const [email, setEmail] = useState('user@example.com');
   const [profileImage, setProfileImage] = useState('https://picsum.photos/200/200?random=profile');
+  const [isLoading, setIsLoading] = useState(false);
   
   const [isUsernameModalVisible, setIsUsernameModalVisible] = useState(false);
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
@@ -24,6 +27,29 @@ const Settings = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+
+  useEffect(() => {
+    // Fetch user data when the component mounts
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = async () => {
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      try {
+        const result = await getUserById(currentUser.uid);
+        if (result.success) {
+          setUsername(result.user.username);
+          setEmail(result.user.email);
+          if (result.user.photoURL) {
+            setProfileImage(result.user.photoURL);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    }
+  };
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -113,6 +139,39 @@ const Settings = () => {
     Alert.alert('Account Deleted', 'Your account has been successfully deleted');
   };
 
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          onPress: async () => {
+            setIsLoading(true);
+            try {
+              const result = await logoutUser();
+              if (result.success) {
+                // Navigation will be handled by the Navigation component
+                // which listens to auth state changes
+              } else {
+                Alert.alert('Error', result.error || 'Failed to logout');
+              }
+            } catch (error) {
+              Alert.alert('Error', error.message || 'An unexpected error occurred');
+            } finally {
+              setIsLoading(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -177,6 +236,19 @@ const Settings = () => {
           </View>
 
           <View style={[styles.section, styles.dangerSection]}>
+            <TouchableOpacity 
+              style={styles.logoutButton}
+              onPress={handleLogout}
+              disabled={isLoading}
+            >
+              <Ionicons name="log-out-outline" size={20} color="#3D8D7A" style={styles.logoutIcon} />
+              {isLoading ? (
+                <ActivityIndicator color="#3D8D7A" size="small" />
+              ) : (
+                <Text style={styles.logoutText}>Logout</Text>
+              )}
+            </TouchableOpacity>
+
             <TouchableOpacity 
               style={styles.dangerButton}
               onPress={() => setIsDeleteAccountModalVisible(true)}
@@ -485,6 +557,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FF4D6730',
     backgroundColor: '#FFF5F5',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    backgroundColor: '#FFF5F5',
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  logoutIcon: {
+    marginRight: 8,
+  },
+  logoutText: {
+    color: '#3D8D7A',
+    fontWeight: '600',
+    fontSize: 16,
   },
   dangerButton: {
     flexDirection: 'row',

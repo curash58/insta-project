@@ -1,8 +1,12 @@
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Modal, Image, KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Modal, Image, KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback, Keyboard, ActivityIndicator } from 'react-native';
 import React, { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { registerUser } from '../lib/firebase/auth';
+import { updateUserData } from '../lib/firebase/users';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { auth, storage } from '../config/firebase';
 
 const SignIn = ({ navigation }) => {
   const [username, setUsername] = useState('');
@@ -15,6 +19,7 @@ const SignIn = ({ navigation }) => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
   const [bio, setBio] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -29,7 +34,7 @@ const SignIn = ({ navigation }) => {
     }
   };
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     if (!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -40,27 +45,79 @@ const SignIn = ({ navigation }) => {
       return;
     }
     
-    navigation.navigate('Login');
+    setIsLoading(true);
+    
+    try {
+      const result = await registerUser(email, password, username);
+      
+      if (result.success) {
+        setShowProfileModal(true);
+      } else {
+        Alert.alert('Registration Failed', result.error);
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleProfileSetup = () => {
-    if (!profileImage || !bio) {
+  const uploadProfileImage = async (uri) => {
+    try {
+      // Convert image URI to blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      // Create a reference to the storage location
+      const user = auth.currentUser;
+      const storageRef = ref(storage, `profile_images/${user.uid}`);
+      
+      // Upload the image
+      await uploadBytes(storageRef, blob);
+      
+      // Get the download URL
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      return downloadURL;
+    } catch (error) {
+      console.error('Error uploading image: ', error);
+      throw error;
+    }
+  };
+
+  const handleProfileSetup = async () => {
+    if (!profileImage || !bio.trim()) {
       Alert.alert('Error', 'Please add a profile picture and bio');
       return;
     }
 
-    console.log('User Profile:', {
-      username,
-      email,
-      password,
-      profileImage,
-      bio
-    });
-
-    setShowProfileModal(false);
-    Alert.alert('Success', 'Account created successfully!', [
-      { text: 'OK', onPress: () => navigation.navigate('Login') }
-    ]);
+    setIsLoading(true);
+    
+    try {
+      const user = auth.currentUser;
+      
+      if (!user) {
+        throw new Error('User not found. Please try logging in again.');
+      }
+      
+      // Upload the profile image and get the URL
+      const imageURL = await uploadProfileImage(profileImage);
+      
+      // Update the user profile with additional information
+      await updateUserData(user.uid, {
+        bio: bio,
+        photoURL: imageURL,
+      });
+      
+      setShowProfileModal(false);
+      Alert.alert('Success', 'Account created successfully!', [
+        { text: 'OK', onPress: () => navigation.navigate('Login') }
+      ]);
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to complete profile setup');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -150,8 +207,12 @@ const SignIn = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-                <Text style={styles.buttonText}>Sign Up</Text>
+              <TouchableOpacity style={styles.button} onPress={handleSignUp} disabled={isLoading}>
+                {isLoading ? (
+                  <ActivityIndicator color="#FBFFE4" size="small" />
+                ) : (
+                  <Text style={styles.buttonText}>Sign Up</Text>
+                )}
               </TouchableOpacity>
 
               <View style={styles.divider}>
@@ -207,10 +268,15 @@ const SignIn = ({ navigation }) => {
             />
 
             <TouchableOpacity 
-              style={styles.button}
+              style={styles.modalButton}
               onPress={handleProfileSetup}
+              disabled={isLoading}
             >
-              <Text style={styles.buttonText}>Complete Profile</Text>
+              {isLoading ? (
+                <ActivityIndicator color="#FBFFE4" size="small" />
+              ) : (
+                <Text style={styles.modalButtonText}>Complete Setup</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -393,5 +459,27 @@ const styles = StyleSheet.create({
   bioInput: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  modalButton: {
+    backgroundColor: '#3D8D7A',
+    padding: 15,
+    borderRadius: 15,
+    alignItems: 'center',
+    marginTop: 10,
+    shadowColor: '#3D8D7A',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    height: 55,
+    justifyContent: 'center',
+  },
+  modalButtonText: {
+    color: '#FBFFE4',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
