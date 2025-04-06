@@ -54,7 +54,7 @@ const Settings = () => {
   };
 
   const handleGoBack = () => {
-    navigation.goBack();
+    navigation.navigate('ProfileUser');
   };
 
   const pickImage = async () => {
