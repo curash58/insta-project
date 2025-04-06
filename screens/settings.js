@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import TabForAllPages from '../components/tabForAllPages';
 import * as ImagePicker from 'expo-image-picker';
-import { logoutUser, getCurrentUser, updateUserProfile } from '../lib/firebase/auth';
+import { logoutUser, getCurrentUser, updateUserProfile, updateUserEmail, updateUserPassword, deleteUserAccount, sendVerificationEmail } from '../lib/firebase/auth';
 import { getUserById } from '../lib/firebase/users';
 
 const Settings = () => {
@@ -15,16 +15,19 @@ const Settings = () => {
   const [profileImage, setProfileImage] = useState('https://picsum.photos/200/200?random=profile');
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(true);
   
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
   const [isEmailModalVisible, setIsEmailModalVisible] = useState(false);
   const [isDeleteAccountModalVisible, setIsDeleteAccountModalVisible] = useState(false);
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
+  const [isUsernameModalVisible, setIsUsernameModalVisible] = useState(false);
   
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newUsername, setNewUsername] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
   useEffect(() => {
@@ -42,6 +45,7 @@ const Settings = () => {
           if (result.user.photoURL) {
             setProfileImage(result.user.photoURL);
           }
+          setIsEmailVerified(currentUser.emailVerified);
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -95,7 +99,7 @@ const Settings = () => {
     }
   };
 
-  const updatePassword = () => {
+  const updatePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -106,38 +110,135 @@ const Settings = () => {
       return;
     }
 
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setIsPasswordModalVisible(false);
-    Alert.alert('Success', 'Password updated successfully!');
+    try {
+      const result = await updateUserPassword(currentPassword, newPassword);
+      
+      if (result.success) {
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setIsPasswordModalVisible(false);
+        Alert.alert('Success', 'Password updated successfully!');
+      } else {
+        Alert.alert('Error', result.error || 'Failed to update password');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update password');
+    }
   };
 
-  const updateEmail = () => {
+  const updateEmail = async () => {
     if (!newEmail.trim() || !newEmail.includes('@')) {
       Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
 
-    setEmail(newEmail);
-    setNewEmail('');
-    setIsEmailModalVisible(false);
-    Alert.alert('Success', 'Email updated successfully!');
+    try {
+      // First, verify current email if not verified
+      const currentUser = getCurrentUser();
+      if (currentUser && !currentUser.emailVerified) {
+        Alert.alert(
+          'Email Not Verified',
+          'Your current email is not verified. We need to verify it before changing to a new one.',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            },
+            {
+              text: 'Send Verification Email',
+              onPress: async () => {
+                try {
+                  const result = await sendVerificationEmail();
+                  if (result.success) {
+                    Alert.alert(
+                      'Verification Email Sent',
+                      'Please check your inbox and verify your email before trying to change it.',
+                      [{ text: 'OK', onPress: () => setIsEmailModalVisible(false) }]
+                    );
+                  } else {
+                    Alert.alert('Error', result.error || 'Failed to send verification email');
+                  }
+                } catch (error) {
+                  Alert.alert('Error', 'Failed to send verification email');
+                }
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      // If email is verified, proceed with changing it
+      const result = await updateUserEmail(newEmail, currentPassword);
+      
+      if (result.success) {
+        setEmail(newEmail);
+        setNewEmail('');
+        setCurrentPassword('');
+        setIsEmailModalVisible(false);
+
+        // Send verification for new email
+        await sendVerificationEmail();
+        
+        Alert.alert(
+          'Email Updated', 
+          'Your email has been updated successfully! A verification email has been sent to your new address. Please verify it.'
+        );
+      } else {
+        Alert.alert('Error', result.error || 'Failed to update email');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update email');
+    }
   };
 
-  const deleteAccount = () => {
+  const updateUsername = async () => {
+    if (!newUsername.trim() || newUsername.length < 3) {
+      Alert.alert('Error', 'Username must be at least 3 characters');
+      return;
+    }
+    
+    try {
+      const updateResult = await updateUserProfile({
+        username: newUsername
+      });
+      
+      if (updateResult.success) {
+        setUsername(newUsername);
+        setNewUsername('');
+        setIsUsernameModalVisible(false);
+        Alert.alert('Success', 'Username updated successfully!');
+      } else {
+        Alert.alert('Error', updateResult.error || 'Failed to update username');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update username');
+    }
+  };
+
+  const deleteAccount = async () => {
     if (deleteConfirmation !== 'DELETE') {
       Alert.alert('Error', 'Please type DELETE to confirm');
       return;
     }
 
-    // Here you would call your API to delete the account
-    setDeleteConfirmation('');
-    setIsDeleteAccountModalVisible(false);
-    
-    // Navigate back to login screen after account deletion
-    navigation.navigate('Login');
-    Alert.alert('Account Deleted', 'Your account has been successfully deleted');
+    try {
+      const result = await deleteUserAccount(currentPassword);
+      
+      if (result.success) {
+        setDeleteConfirmation('');
+        setIsDeleteAccountModalVisible(false);
+        
+        // Navigate back to login screen after account deletion
+        navigation.navigate('Login');
+        Alert.alert('Account Deleted', 'Your account has been successfully deleted');
+      } else {
+        Alert.alert('Error', result.error || 'Failed to delete account');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete account');
+    }
   };
 
   const handleLogout = async () => {
@@ -173,6 +274,19 @@ const Settings = () => {
     );
   };
 
+  const handleSendVerificationEmail = async () => {
+    try {
+      const result = await sendVerificationEmail();
+      if (result.success) {
+        Alert.alert('Success', 'Verification email sent. Please check your inbox.');
+      } else {
+        Alert.alert('Error', result.error || 'Failed to send verification email');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to send verification email');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -195,8 +309,26 @@ const Settings = () => {
                 <Ionicons name="camera" size={24} color="#FBFFE4" />
               </View>
             </TouchableOpacity>
-            <Text style={styles.profileName}>{username}</Text>
-            <Text style={styles.profileEmail}>{email}</Text>
+            <View style={styles.profileNameContainer}>
+              <Text style={styles.profileName}>{username}</Text>
+              <TouchableOpacity onPress={() => setIsUsernameModalVisible(true)}>
+                <Ionicons name="create-outline" size={20} color="#3D8D7A" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.emailContainer}>
+              <Text style={styles.profileEmail}>{email}</Text>
+              {!isEmailVerified && (
+                <View style={styles.verificationContainer}>
+                  <Text style={styles.verificationText}>Not verified</Text>
+                  <TouchableOpacity 
+                    style={styles.verificationButton}
+                    onPress={handleSendVerificationEmail}
+                  >
+                    <Text style={styles.verificationButtonText}>Verify</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
           </View>
 
           <View style={styles.section}>
@@ -225,7 +357,7 @@ const Settings = () => {
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.section, styles.dangerSection]}>
+          <View style={styles.section}>
             <TouchableOpacity 
               style={styles.logoutButton}
               onPress={handleLogout}
@@ -235,10 +367,12 @@ const Settings = () => {
               {isLoading ? (
                 <ActivityIndicator color="#3D8D7A" size="small" />
               ) : (
-                <Text style={styles.logoutText}>Logout</Text>
+                <Text style={styles.logoutText}>Log out</Text>
               )}
             </TouchableOpacity>
+          </View>
 
+          <View style={[styles.section, styles.dangerSection]}>
             <TouchableOpacity 
               style={styles.dangerButton}
               onPress={() => setIsDeleteAccountModalVisible(true)}
@@ -382,6 +516,16 @@ const Settings = () => {
                 autoCapitalize="none"
               />
               
+              <Text style={styles.inputLabel}>Current Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your current password"
+                placeholderTextColor="#A3D1C6"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry
+              />
+              
               <TouchableOpacity 
                 style={styles.actionButton}
                 onPress={updateEmail}
@@ -422,11 +566,59 @@ const Settings = () => {
                 onChangeText={setDeleteConfirmation}
               />
               
+              <Text style={styles.inputLabel}>Enter your password</Text>
+              <TextInput
+                style={[styles.input, styles.dangerInput]}
+                placeholder="Enter your current password"
+                placeholderTextColor="#FF4D6760"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry
+              />
+              
               <TouchableOpacity 
                 style={[styles.actionButton, styles.dangerButton]}
                 onPress={deleteAccount}
               >
                 <Text style={styles.dangerButtonText}>Delete My Account</Text>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* Username Change Modal */}
+        <Modal
+          visible={isUsernameModalVisible}
+          animationType="slide"
+          transparent
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.centeredView}
+          >
+            <View style={styles.modalView}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Change Username</Text>
+                <TouchableOpacity onPress={() => setIsUsernameModalVisible(false)}>
+                  <Ionicons name="close" size={24} color="#3D8D7A" />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={styles.inputLabel}>New Username</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter new username"
+                placeholderTextColor="#A3D1C6"
+                value={newUsername}
+                onChangeText={setNewUsername}
+                autoCapitalize="none"
+              />
+              
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={updateUsername}
+              >
+                <Text style={styles.buttonText}>Update Username</Text>
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>
@@ -636,6 +828,11 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
+  profileNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 15,
+  },
   profileImage: {
     width: 120,
     height: 120,
@@ -660,12 +857,37 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#3D8D7A',
-    marginTop: 15,
+    marginRight: 10,
   },
   profileEmail: {
     fontSize: 16,
     color: '#A3D1C6',
     marginTop: 5,
+  },
+  emailContainer: {
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  verificationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  verificationText: {
+    fontSize: 12,
+    color: '#FF4D67',
+    marginRight: 10,
+  },
+  verificationButton: {
+    backgroundColor: '#3D8D7A',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  verificationButtonText: {
+    color: '#FBFFE4',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   avatarPreviewContainer: {
     alignItems: 'center',
