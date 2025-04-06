@@ -8,7 +8,7 @@ import { savePost, unsavePost, isPostSaved } from '../lib/firebase/users';
 
 const { width } = Dimensions.get('window');
 
-const PostCard = ({ post }) => {
+const PostCard = ({ post, onLikeChange, onSaveChange }) => {
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isCheckingSaved, setIsCheckingSaved] = useState(true);
@@ -53,9 +53,16 @@ const PostCard = ({ post }) => {
       if (result.success) {
         setLiked(!liked);
         // Update post likes count
-        post.likes = liked 
+        const updatedLikes = liked 
           ? (post.likes || []).filter(id => id !== currentUser.uid)
           : [...(post.likes || []), currentUser.uid];
+        
+        post.likes = updatedLikes;
+        
+        // Notify parent component if callback provided
+        if (onLikeChange) {
+          onLikeChange(post);
+        }
       } else {
         Alert.alert('Error', result.error || 'Failed to update like status');
       }
@@ -77,8 +84,10 @@ const PostCard = ({ post }) => {
         
       if (result.success) {
         setSaved(!saved);
-        if (!saved) {
-          // Alert.alert('Success', 'Post saved successfully!');
+        
+        // Notify parent component if callback provided
+        if (onSaveChange) {
+          onSaveChange(post.id, !saved);
         }
       } else {
         Alert.alert('Error', result.error || 'Failed to save/unsave post');
@@ -159,14 +168,6 @@ const PostCard = ({ post }) => {
         <Text style={styles.username}>{post.username}</Text>
         <Text style={styles.captionText}>{post.caption}</Text>
       </View>
-      
-      {/* Preview comments - just a hint to tap and see more */}
-      <TouchableOpacity 
-        style={styles.viewCommentsButton} 
-        onPress={navigateToPost}
-      >
-        <Text style={styles.viewCommentsText}>View all comments</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -226,10 +227,6 @@ const styles = StyleSheet.create({
     color: '#3D8D7A',
     fontSize: 16,
     marginTop: 4,
-  },
-  viewCommentsButton: {
-    paddingHorizontal: 10,
-    paddingBottom: 10,
   },
   viewCommentsText: {
     color: '#A3D1C6',

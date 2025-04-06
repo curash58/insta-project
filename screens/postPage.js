@@ -5,7 +5,6 @@ import {
   Image, 
   StyleSheet, 
   TouchableOpacity, 
-  FlatList, 
   TextInput, 
   SafeAreaView,
   KeyboardAvoidingView,
@@ -19,21 +18,18 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { getComments, addComment } from '../lib/firebase/comments';
-import { likePost, unlikePost } from '../lib/firebase/posts';
 import { getCurrentUser } from '../lib/firebase/auth';
-import { savePost, unsavePost, isPostSaved } from '../lib/firebase/users';
+import PostCard from '../components/postCard';
 
 const { width } = Dimensions.get('window');
 
 const PostPage = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { post } = route.params || {};
+  const { post: initialPost } = route.params || {};
   const currentUser = getCurrentUser();
   
-  const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [isCheckingSaved, setIsCheckingSaved] = useState(true);
+  const [post, setPost] = useState(initialPost);
   const [comment, setComment] = useState('');
   const [comments, setComments] = useState([]);
   const [showAllComments, setShowAllComments] = useState(false);
@@ -44,25 +40,6 @@ const PostPage = () => {
   useEffect(() => {
     if (post) {
       fetchComments();
-      // Check if current user has liked the post
-      setLiked(post.likes?.includes(currentUser?.uid) || false);
-      
-      // Check if post is saved
-      const checkSavedStatus = async () => {
-        setIsCheckingSaved(true);
-        try {
-          const result = await isPostSaved(currentUser?.uid, post.id);
-          if (result.success) {
-            setSaved(result.isSaved);
-          }
-        } catch (error) {
-          console.error('Error checking saved status:', error);
-        } finally {
-          setIsCheckingSaved(false);
-        }
-      };
-      
-      checkSavedStatus();
     }
   }, [post]);
 
@@ -81,31 +58,6 @@ const PostPage = () => {
     }
   };
 
-  const handleLike = async () => {
-    if (!currentUser) {
-      Alert.alert('Error', 'You must be logged in to like posts');
-      return;
-    }
-
-    try {
-      const result = liked 
-        ? await unlikePost(post.id, currentUser.uid)
-        : await likePost(post.id, currentUser.uid);
-
-      if (result.success) {
-        setLiked(!liked);
-        // Update post likes count
-        post.likes = liked 
-          ? post.likes.filter(id => id !== currentUser.uid)
-          : [...post.likes, currentUser.uid];
-      } else {
-        Alert.alert('Error', result.error || 'Failed to update like status');
-      }
-    } catch (err) {
-      Alert.alert('Error', 'An unexpected error occurred');
-    }
-  };
-
   const handlePostComment = async () => {
     if (!comment.trim() || !currentUser) {
       Alert.alert('Error', 'You must be logged in to comment');
@@ -115,7 +67,16 @@ const PostPage = () => {
     try {
       const result = await addComment(post.id, currentUser.uid, comment.trim());
       if (result.success) {
-        setComments([result.comment, ...comments]);
+        // Update comments array
+        const updatedComments = [result.comment, ...comments];
+        setComments(updatedComments);
+        
+        // Update post.comments count
+        setPost(prevPost => ({
+          ...prevPost,
+          comments: updatedComments
+        }));
+        
         setComment('');
       } else {
         Alert.alert('Error', result.error || 'Failed to post comment');
@@ -125,47 +86,21 @@ const PostPage = () => {
     }
   };
 
-  const handleSave = async () => {
-    if (!currentUser) {
-      Alert.alert('Error', 'You must be logged in to save posts');
-      return;
-    }
-    
-    try {
-      const result = saved
-        ? await unsavePost(currentUser.uid, post.id)
-        : await savePost(currentUser.uid, post.id);
-        
-      if (result.success) {
-        setSaved(!saved);
-        if (!saved) {
-          // Alert.alert('Success', 'Post saved successfully!');
-        }
-      } else {
-        Alert.alert('Error', result.error || 'Failed to save/unsave post');
-      }
-    } catch (err) {
-      Alert.alert('Error', 'An unexpected error occurred');
-    }
-  };
-
   const handleGoBack = () => {
     navigation.goBack();
+  };
+  
+  const handlePostLikeChange = (updatedPost) => {
+    setPost({...updatedPost});
+  };
+  
+  const handlePostSaveChange = (postId, isSaved) => {
+    // If needed, you can update local state here
+    // This is mostly handled in the PostCard component
   };
 
   // Render only the first 2 comments when not showing all
   const displayComments = showAllComments ? comments : comments.slice(0, 2);
-
-  const renderComment = ({ item }) => (
-    <View style={styles.commentContainer}>
-      <Image source={{ uri: item.userProfileImage }} style={styles.commentUserImage} />
-      <View style={styles.commentContent}>
-        <Text style={styles.commentUsername}>{item.username}</Text>
-        <Text style={styles.commentText}>{item.message}</Text>
-        <Text style={styles.commentTime}>{new Date(item.timestamp).toLocaleDateString()}</Text>
-      </View>
-    </View>
-  );
 
   if (!post) {
     return (
@@ -205,60 +140,14 @@ const PostPage = () => {
           showsVerticalScrollIndicator={false}
           onScrollBeginDrag={() => Keyboard.dismiss()}
         >
-          <View style={styles.userInfoContainer}>
-            <Image 
-              source={{ uri: post.userProfileImage }} 
-              style={styles.profileImage} 
-            />
-            <Text style={styles.username}>{post.username}</Text>
-          </View>
-
-          <Image 
-            source={{ uri: post.imageURL }} 
-            style={styles.postImage} 
-            resizeMode="cover"
+          <PostCard 
+            post={post} 
+            onLikeChange={handlePostLikeChange}
+            onSaveChange={handlePostSaveChange}
           />
 
-          <View style={styles.actionsContainer}>
-            <View style={styles.actionsRow}>
-              <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
-                <Ionicons 
-                  name={liked ? "heart" : "heart-outline"} 
-                  size={24} 
-                  color={liked ? "#FF4D67" : "#3D8D7A"} 
-                />
-                <Text style={styles.actionText}>{post.likes?.length || 0} likes</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.actionButton}>
-                <Ionicons name="chatbubble-outline" size={24} color="#3D8D7A" />
-                <Text style={styles.actionText}>{comments?.length || 0} comments</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.actionButton} 
-                onPress={handleSave}
-                disabled={isCheckingSaved}
-              >
-                <Ionicons 
-                  name={saved ? "bookmark" : "bookmark-outline"} 
-                  size={24} 
-                  color="#3D8D7A" 
-                />
-                <Text style={styles.actionText}>
-                  {saved ? "Saved" : "Save"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.captionContainer}>
-            <Text style={styles.usernameCaption}>{post.username}</Text>
-            <Text style={styles.captionText}>{post.caption}</Text>
-          </View>
-
           <View style={styles.commentsSection}>
-            <Text style={styles.commentsTitle}>Comments</Text>
+            <Text style={styles.commentsTitle}>Comments ({comments.length})</Text>
             
             {(displayComments || []).map(comment => (
               <View key={comment.id} style={styles.commentContainer}>
@@ -266,7 +155,9 @@ const PostPage = () => {
                 <View style={styles.commentContent}>
                   <Text style={styles.commentUsername}>{comment.username}</Text>
                   <Text style={styles.commentText}>{comment.message}</Text>
-                  <Text style={styles.commentTime}>{new Date(comment.timestamp).toLocaleDateString()}</Text>
+                  <Text style={styles.commentTime}>
+                    {new Date(comment.timestamp).toLocaleString('en-US', { month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric' })}
+                  </Text>
                 </View>
               </View>
             ))}
@@ -349,64 +240,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
-  userInfoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-  },
-  profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  username: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#3D8D7A',
-  },
-  postImage: {
-    width: width,
-    height: width,
-  },
-  actionsContainer: {
-    padding: 15,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    marginBottom: 10,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FBFFE4',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-    marginRight: 15,
-  },
-  actionText: {
-    color: '#3D8D7A',
-    fontWeight: '600',
-    fontSize: 16,
-    marginLeft: 8,
-  },
-  captionContainer: {
-    paddingHorizontal: 15,
-    marginBottom: 15,
-  },
-  usernameCaption: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#3D8D7A',
-    marginBottom: 5,
-  },
-  captionText: {
-    color: '#3D8D7A',
-    fontSize: 16,
-  },
   commentsSection: {
     paddingHorizontal: 15,
+    marginTop: 10,
   },
   commentsTitle: {
     fontSize: 18,
