@@ -357,7 +357,7 @@ const Settings = () => {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.section}>
+          <View>
             <TouchableOpacity 
               style={styles.logoutButton}
               onPress={handleLogout}
@@ -713,8 +713,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
-    backgroundColor: '#FFF5F5',
+    padding: 25,
+    backgroundColor: '#FFF',
+    borderColor: '#3D8D7A',
+    borderWidth: 1,
     borderRadius: 10,
     marginBottom: 10,
   },
@@ -730,7 +732,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
+    padding: 7,
     backgroundColor: '#FFF5F5',
     borderRadius: 10,
   },
@@ -793,8 +795,10 @@ const styles = StyleSheet.create({
   actionButton: {
     backgroundColor: '#3D8D7A',
     borderRadius: 10,
-    padding: 12,
+    padding: 15,
     alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: 'center',
     marginTop: 10,
   },
   buttonText: {
