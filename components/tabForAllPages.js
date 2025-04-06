@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
 
 const TabForAllPages = () => {
   const navigation = useNavigation();
@@ -9,7 +9,19 @@ const TabForAllPages = () => {
   const currentScreen = route.name;
 
   const handleNavigation = (screenName) => {
-    navigation.navigate(screenName);
+    // Skip navigation if we're already on this screen
+    if (currentScreen === screenName) {
+      return;
+    }
+
+    // Use CommonActions.reset to completely remove animation
+    // This approach is similar to how Instagram handles tab navigation
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: screenName }],
+      })
+    );
   };
 
   return (
