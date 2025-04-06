@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
-    marginRight: 20,
+    marginRight: 10,
   },
   actionText: {
     color: '#3D8D7A',
