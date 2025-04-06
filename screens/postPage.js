@@ -13,13 +13,15 @@ import {
   Dimensions,
   ScrollView,
   Keyboard,
-  ActivityIndicator
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { getComments, addComment } from '../lib/firebase/comments';
 import { likePost, unlikePost } from '../lib/firebase/posts';
 import { getCurrentUser } from '../lib/firebase/auth';
+import { savePost, unsavePost, isPostSaved } from '../lib/firebase/users';
 
 const { width } = Dimensions.get('window');
 
@@ -30,6 +32,8 @@ const PostPage = () => {
   const currentUser = getCurrentUser();
   
   const [liked, setLiked] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [isCheckingSaved, setIsCheckingSaved] = useState(true);
   const [comment, setComment] = useState('');
   const [comments, setComments] = useState([]);
   const [showAllComments, setShowAllComments] = useState(false);
@@ -42,6 +46,23 @@ const PostPage = () => {
       fetchComments();
       // Check if current user has liked the post
       setLiked(post.likes?.includes(currentUser?.uid) || false);
+      
+      // Check if post is saved
+      const checkSavedStatus = async () => {
+        setIsCheckingSaved(true);
+        try {
+          const result = await isPostSaved(currentUser?.uid, post.id);
+          if (result.success) {
+            setSaved(result.isSaved);
+          }
+        } catch (error) {
+          console.error('Error checking saved status:', error);
+        } finally {
+          setIsCheckingSaved(false);
+        }
+      };
+      
+      checkSavedStatus();
     }
   }, [post]);
 
@@ -98,6 +119,30 @@ const PostPage = () => {
         setComment('');
       } else {
         Alert.alert('Error', result.error || 'Failed to post comment');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!currentUser) {
+      Alert.alert('Error', 'You must be logged in to save posts');
+      return;
+    }
+    
+    try {
+      const result = saved
+        ? await unsavePost(currentUser.uid, post.id)
+        : await savePost(currentUser.uid, post.id);
+        
+      if (result.success) {
+        setSaved(!saved);
+        if (!saved) {
+          // Alert.alert('Success', 'Post saved successfully!');
+        }
+      } else {
+        Alert.alert('Error', result.error || 'Failed to save/unsave post');
       }
     } catch (err) {
       Alert.alert('Error', 'An unexpected error occurred');
@@ -188,6 +233,21 @@ const PostPage = () => {
               <TouchableOpacity style={styles.actionButton}>
                 <Ionicons name="chatbubble-outline" size={24} color="#3D8D7A" />
                 <Text style={styles.actionText}>{comments?.length || 0} comments</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.actionButton} 
+                onPress={handleSave}
+                disabled={isCheckingSaved}
+              >
+                <Ionicons 
+                  name={saved ? "bookmark" : "bookmark-outline"} 
+                  size={24} 
+                  color="#3D8D7A" 
+                />
+                <Text style={styles.actionText}>
+                  {saved ? "Saved" : "Save"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

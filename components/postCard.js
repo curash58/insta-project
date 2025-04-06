@@ -4,11 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { likePost, unlikePost } from '../lib/firebase/posts';
 import { getCurrentUser } from '../lib/firebase/auth';
+import { savePost, unsavePost, isPostSaved } from '../lib/firebase/users';
 
 const { width } = Dimensions.get('window');
 
 const PostCard = ({ post }) => {
   const [liked, setLiked] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [isCheckingSaved, setIsCheckingSaved] = useState(true);
   const navigation = useNavigation();
   const currentUser = getCurrentUser();
 
@@ -16,6 +19,23 @@ const PostCard = ({ post }) => {
     // Check if current user has liked the post
     if (post && currentUser) {
       setLiked(post.likes?.includes(currentUser.uid) || false);
+      
+      // Check if post is saved
+      const checkSavedStatus = async () => {
+        setIsCheckingSaved(true);
+        try {
+          const result = await isPostSaved(currentUser.uid, post.id);
+          if (result.success) {
+            setSaved(result.isSaved);
+          }
+        } catch (error) {
+          console.error('Error checking saved status:', error);
+        } finally {
+          setIsCheckingSaved(false);
+        }
+      };
+      
+      checkSavedStatus();
     }
   }, [post, currentUser]);
 
@@ -38,6 +58,30 @@ const PostCard = ({ post }) => {
           : [...(post.likes || []), currentUser.uid];
       } else {
         Alert.alert('Error', result.error || 'Failed to update like status');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
+  };
+  
+  const handleSave = async () => {
+    if (!currentUser) {
+      Alert.alert('Error', 'You must be logged in to save posts');
+      return;
+    }
+    
+    try {
+      const result = saved
+        ? await unsavePost(currentUser.uid, post.id)
+        : await savePost(currentUser.uid, post.id);
+        
+      if (result.success) {
+        setSaved(!saved);
+        if (!saved) {
+          // Alert.alert('Success', 'Post saved successfully!');
+        }
+      } else {
+        Alert.alert('Error', result.error || 'Failed to save/unsave post');
       }
     } catch (err) {
       Alert.alert('Error', 'An unexpected error occurred');
@@ -94,6 +138,19 @@ const PostCard = ({ post }) => {
           >
             <Ionicons name="chatbubble-outline" size={24} color="#3D8D7A" />
             <Text style={styles.actionText}>{post.comments?.length || 0} comments</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.actionButton} 
+            onPress={handleSave}
+            disabled={isCheckingSaved}
+          >
+            <Ionicons 
+              name={saved ? "bookmark" : "bookmark-outline"} 
+              size={24} 
+              color="#3D8D7A" 
+            />
+            <Text style={styles.actionText}>Save</Text>
           </TouchableOpacity>
         </View>
       </View>

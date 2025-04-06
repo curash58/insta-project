@@ -1,27 +1,48 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, Keyboard } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, Keyboard, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import TabForAllPages from '../components/tabForAllPages';
+import { getSavedPosts } from '../lib/firebase/posts';
+import { getCurrentUser } from '../lib/firebase/auth';
 
 const { width } = Dimensions.get('window');
 const numColumns = 3;
 const tileSize = width / numColumns;
 
-// Sample saved posts data
-const SAVED_POSTS = Array(15).fill().map((_, index) => ({
-  id: index.toString(),
-  username: `user_${index}`,
-  userProfileImage: `https://randomuser.me/api/portraits/${index % 2 === 0 ? 'men' : 'women'}/${index + 10}.jpg`,
-  imageUrl: `https://picsum.photos/500/500?random=${index + 200}`,
-  caption: `This is a saved post ${index}`,
-  likesCount: Math.floor(Math.random() * 500),
-  commentsCount: Math.floor(Math.random() * 100)
-}));
-
 const SavedPosts = () => {
   const navigation = useNavigation();
+  const [savedPosts, setSavedPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const currentUser = getCurrentUser();
+
+  useEffect(() => {
+    fetchSavedPosts();
+  }, []);
+
+  const fetchSavedPosts = async () => {
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const result = await getSavedPosts(currentUser.uid);
+      
+      if (result.success) {
+        setSavedPosts(result.posts);
+      } else {
+        setError(result.error || 'Failed to fetch saved posts');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -38,7 +59,7 @@ const SavedPosts = () => {
       activeOpacity={0.8}
     >
       <Image 
-        source={{ uri: item.imageUrl }} 
+        source={{ uri: item.imageURL }} 
         style={styles.postImage}
       />
       <View style={styles.saveIconContainer}>
@@ -58,15 +79,26 @@ const SavedPosts = () => {
           <View style={styles.placeholder} />
         </View>
 
-        {SAVED_POSTS.length > 0 ? (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3D8D7A" />
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle-outline" size={60} color="#FF4D67" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : savedPosts.length > 0 ? (
           <FlatList
-            data={SAVED_POSTS}
+            data={savedPosts}
             renderItem={renderPost}
             keyExtractor={(item) => item.id}
             numColumns={numColumns}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.postsContainer}
             onScrollBeginDrag={() => Keyboard.dismiss()}
+            onRefresh={fetchSavedPosts}
+            refreshing={loading}
           />
         ) : (
           <View style={styles.emptyContainer}>
@@ -157,6 +189,23 @@ const styles = StyleSheet.create({
     color: '#A3D1C6',
     textAlign: 'center',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#FF4D67',
+    textAlign: 'center',
+    marginTop: 10,
+  }
 });
 
 export default SavedPosts;
