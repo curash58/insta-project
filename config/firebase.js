@@ -22,4 +22,16 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
+// Note: In React Native, auth state is typically persisted automatically
+// No need to manually set persistence like in web environments
+
+// Enable Firestore offline persistence
+enableIndexedDbPersistence(db)
+  .then(() => {
+    console.log('Firestore offline persistence enabled');
+  })
+  .catch((error) => {
+    console.error('Error enabling Firestore offline persistence:', error);
+  });
+
 export default app;

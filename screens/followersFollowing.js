@@ -1,106 +1,195 @@
-import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, Keyboard } from 'react-native';
-import React, { useState } from 'react';
+import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, Keyboard, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-
-const dummyFollowers = [
-  {
-    id: '1',
-    name: 'Sarah Johnson',
-    image: 'https://randomuser.me/api/portraits/women/1.jpg',
-    isFollowing: false,
-  },
-  {
-    id: '2',
-    name: 'Mike Wilson',
-    image: 'https://randomuser.me/api/portraits/men/2.jpg',
-    isFollowing: true,
-  },
-  {
-    id: '3',
-    name: 'Emma Davis',
-    image: 'https://randomuser.me/api/portraits/women/3.jpg',
-    isFollowing: false,
-  },
-  {
-    id: '4',
-    name: 'James Brown',
-    image: 'https://randomuser.me/api/portraits/men/4.jpg',
-    isFollowing: true,
-  },
-  {
-    id: '5',
-    name: 'Lisa Anderson',
-    image: 'https://randomuser.me/api/portraits/women/5.jpg',
-    isFollowing: false,
-  },
-  {
-    id: '6',
-    name: 'David Lee',
-    image: 'https://randomuser.me/api/portraits/men/6.jpg',
-    isFollowing: true,
-  },
-  {
-    id: '7',
-    name: 'Sophie Taylor',
-    image: 'https://randomuser.me/api/portraits/women/7.jpg',
-    isFollowing: false,
-  },
-  {
-    id: '8',
-    name: 'Alex Thompson',
-    image: 'https://randomuser.me/api/portraits/men/8.jpg',
-    isFollowing: true,
-  },
-];
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { getFollowers, getFollowing, followUser, unfollowUser } from '../lib/firebase/users';
+import { getCurrentUser } from '../lib/firebase/auth';
 
 const FollowersFollowing = () => {
-  const [followers, setFollowers] = useState(dummyFollowers);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const navigation = useNavigation();
+  const route = useRoute();
+  const type = route.params?.type || 'followers';
+  const targetUserId = route.params?.userId;
 
-  const toggleFollow = (id) => {
-    setFollowers(followers.map(follower => 
-      follower.id === id 
-        ? { ...follower, isFollowing: !follower.isFollowing }
-        : follower
-    ));
+  useEffect(() => {
+    fetchData();
+  }, [type, targetUserId]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Get current user ID
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
+        setError('User not logged in');
+        setLoading(false);
+        return;
+      }
+      
+      setCurrentUserId(currentUser.uid);
+      
+      // Use targetUserId if provided, otherwise use current user's ID
+      const userIdToFetch = targetUserId || currentUser.uid;
+      
+      // Fetch followers or following based on type
+      let result;
+      if (type === 'followers') {
+        result = await getFollowers(userIdToFetch);
+      } else {
+        result = await getFollowing(userIdToFetch);
+      }
+      
+      if (result.success) {
+        // Add isFollowing flag to each user
+        const usersWithFollowStatus = result[type].map(user => {
+          // Check if the current user is following this user
+          const isFollowing = currentUser.userData?.following?.includes(user.uid) || false;
+          return { ...user, isFollowing };
+        });
+        
+        setUsers(usersWithFollowStatus);
+      } else {
+        setError(result.error || `Failed to fetch ${type}`);
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleFollow = async (userId) => {
+    if (!currentUserId) return;
+    
+    try {
+      // Find the user in the list
+      const userIndex = users.findIndex(user => user.uid === userId);
+      if (userIndex === -1) return;
+      
+      const user = users[userIndex];
+      const isCurrentlyFollowing = user.isFollowing;
+      
+      // Optimistically update UI
+      const updatedUsers = [...users];
+      updatedUsers[userIndex] = { ...user, isFollowing: !isCurrentlyFollowing };
+      setUsers(updatedUsers);
+      
+      // Call the appropriate API
+      let result;
+      if (isCurrentlyFollowing) {
+        result = await unfollowUser(currentUserId, userId);
+      } else {
+        result = await followUser(currentUserId, userId);
+      }
+      
+      if (!result.success) {
+        // Revert the optimistic update if the API call failed
+        const revertedUsers = [...users];
+        revertedUsers[userIndex] = { ...user, isFollowing: isCurrentlyFollowing };
+        setUsers(revertedUsers);
+        
+        setError(result.error || `Failed to ${isCurrentlyFollowing ? 'unfollow' : 'follow'} user`);
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+      console.error(err);
+    }
   };
 
   const goBack = () => {
     navigation.goBack();
   };
 
-  const renderFollower = ({ item }) => (
+  const renderUser = ({ item }) => (
     <View style={styles.followerItem}>
       <TouchableOpacity 
         style={styles.profileSection}
         activeOpacity={0.7}
-        onPress={() => navigation.navigate('ProfileUserLook')}
+        onPress={() => navigation.navigate('ProfileUserLook', { userId: item.uid })}
       >
         <Image 
-          source={{ uri: item.image }} 
+          source={{ uri: item.photoURL || 'https://picsum.photos/200/200?random=profile' }} 
           style={styles.followerImage}
         />
-        <Text style={styles.followerName}>{item.name}</Text>
+        <Text style={styles.followerName}>{item.username}</Text>
       </TouchableOpacity>
       
-      <TouchableOpacity 
-        style={[
-          styles.followButton,
-          item.isFollowing && styles.followingButton
-        ]}
-        onPress={() => toggleFollow(item.id)}
-      >
-        <Text style={[
-          styles.followButtonText,
-          item.isFollowing && styles.followingButtonText
-        ]}>
-          {item.isFollowing ? 'Following' : 'Follow'}
-        </Text>
-      </TouchableOpacity>
+      {item.uid !== currentUserId && (
+        <TouchableOpacity 
+          style={[
+            styles.followButton,
+            item.isFollowing && styles.followingButton
+          ]}
+          onPress={() => toggleFollow(item.uid)}
+        >
+          <Text style={[
+            styles.followButtonText,
+            item.isFollowing && styles.followingButtonText
+          ]}>
+            {item.isFollowing ? 'Following' : 'Follow'}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={goBack}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={24} color="#FBFFE4" />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.title}>{type === 'followers' ? 'Followers' : 'Following'}</Text>
+          </View>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3D8D7A" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={goBack}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={24} color="#FBFFE4" />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.title}>{type === 'followers' ? 'Followers' : 'Following'}</Text>
+          </View>
+        </View>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={fetchData}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -113,17 +202,22 @@ const FollowersFollowing = () => {
           <Ionicons name="arrow-back" size={24} color="#FBFFE4" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.title}>Followers</Text>
-          <Text style={styles.subtitle}>{followers.length} followers</Text>
+          <Text style={styles.title}>{type === 'followers' ? 'Followers' : 'Following'}</Text>
+          <Text style={styles.subtitle}>{users.length} {type}</Text>
         </View>
       </View>
       <FlatList
-        data={followers}
-        renderItem={renderFollower}
-        keyExtractor={item => item.id}
+        data={users}
+        renderItem={renderUser}
+        keyExtractor={item => item.uid}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
         onScrollBeginDrag={() => Keyboard.dismiss()}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No {type} yet</Text>
+          </View>
+        }
       />
     </SafeAreaView>
   );
@@ -219,5 +313,42 @@ const styles = StyleSheet.create({
   },
   followingButtonText: {
     color: '#3D8D7A',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#FF4D67',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#3D8D7A',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: '#FBFFE4',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#3D8D7A',
+    opacity: 0.7,
   },
 });

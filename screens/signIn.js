@@ -15,11 +15,11 @@ const SignIn = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [agreedToPolicy, setAgreedToPolicy] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
   const [bio, setBio] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [tempUserCredentials, setTempUserCredentials] = useState(null);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -48,13 +48,19 @@ const SignIn = ({ navigation }) => {
     setIsLoading(true);
     
     try {
-      const result = await registerUser(email, password, username);
+      // Store the user credentials temporarily
+      const userCredentials = {
+        email,
+        password,
+        username
+      };
       
-      if (result.success) {
-        setShowProfileModal(true);
-      } else {
-        Alert.alert('Registration Failed', result.error);
-      }
+      // Show the profile modal to collect bio and profile picture
+      setShowProfileModal(true);
+      
+      // Store the credentials for later use
+      setTempUserCredentials(userCredentials);
+      
     } catch (error) {
       Alert.alert('Error', error.message || 'An unexpected error occurred');
     } finally {
@@ -62,14 +68,19 @@ const SignIn = ({ navigation }) => {
     }
   };
 
-  const uploadProfileImage = async (uri) => {
+  const uploadProfileImage = async (uri, userId = null) => {
     try {
       // Convert image URI to blob
       const response = await fetch(uri);
       const blob = await response.blob();
       
       // Create a reference to the storage location
-      const user = auth.currentUser;
+      const user = userId ? { uid: userId } : auth.currentUser;
+      
+      if (!user || !user.uid) {
+        throw new Error('User not authenticated. Please try again.');
+      }
+      
       const storageRef = ref(storage, `profile_images/${user.uid}`);
       
       // Upload the image
@@ -86,30 +97,46 @@ const SignIn = ({ navigation }) => {
   };
 
   const handleProfileSetup = async () => {
-    if (!profileImage || !bio.trim()) {
-      Alert.alert('Error', 'Please add a profile picture and bio');
+    if (!profileImage) {
+      Alert.alert('Error', 'Please add a profile picture');
+      return;
+    }
+    
+    if (!bio.trim()) {
+      Alert.alert('Error', 'Please write a bio');
+      return;
+    }
+    
+    if (bio.trim().length < 10) {
+      Alert.alert('Error', 'Your bio should be at least 10 characters long');
       return;
     }
 
     setIsLoading(true);
     
     try {
-      const user = auth.currentUser;
+      // Register the user with the stored credentials first
+      const result = await registerUser(
+        tempUserCredentials.email, 
+        tempUserCredentials.password, 
+        tempUserCredentials.username
+      );
       
-      if (!user) {
-        throw new Error('User not found. Please try logging in again.');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create account');
       }
       
-      // Upload the profile image and get the URL
-      const imageURL = await uploadProfileImage(profileImage);
+      // Now that the user is registered, we can upload the image
+      const imageURL = await uploadProfileImage(profileImage, result.user.uid);
       
       // Update the user profile with additional information
-      await updateUserData(user.uid, {
-        bio: bio,
+      await updateUserData(result.user.uid, {
+        bio: bio.trim(),
         photoURL: imageURL,
       });
       
       setShowProfileModal(false);
+      setTempUserCredentials(null);
       Alert.alert('Success', 'Account created successfully!', [
         { text: 'OK', onPress: () => navigation.navigate('Login') }
       ]);
@@ -147,6 +174,7 @@ const SignIn = ({ navigation }) => {
                   placeholderTextColor="#A3D1C6"
                   value={username}
                   onChangeText={setUsername}
+                  autoCapitalize="none"
                 />
               </View>
 
@@ -172,6 +200,7 @@ const SignIn = ({ navigation }) => {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
+                  autoCapitalize="none"
                 />
                 <TouchableOpacity 
                   onPress={() => setShowPassword(!showPassword)}
@@ -194,6 +223,7 @@ const SignIn = ({ navigation }) => {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
                 />
                 <TouchableOpacity 
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -239,7 +269,34 @@ const SignIn = ({ navigation }) => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Complete Your Profile</Text>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={() => {
+                  Alert.alert(
+                    'Cancel Profile Setup',
+                    'Are you sure you want to cancel? You will need to start the sign-up process again.',
+                    [
+                      {
+                        text: 'Cancel',
+                        style: 'cancel'
+                      },
+                      {
+                        text: 'Yes, Go Back',
+                        onPress: () => {
+                          setShowProfileModal(false);
+                          setTempUserCredentials(null);
+                        }
+                      }
+                    ]
+                  );
+                }}
+              >
+                <Ionicons name="arrow-back" size={24} color="#3D8D7A" />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Complete Your Profile</Text>
+              <View style={styles.placeholderView} />
+            </View>
             
             <TouchableOpacity 
               style={styles.imagePickerContainer}
@@ -257,15 +314,19 @@ const SignIn = ({ navigation }) => {
               )}
             </TouchableOpacity>
 
-            <TextInput
-              style={[styles.input, styles.bioInput]}
-              placeholder="Write a bio"
-              placeholderTextColor="#A3D1C6"
-              value={bio}
-              onChangeText={setBio}
-              multiline
-              numberOfLines={4}
-            />
+            <View style={styles.bioContainer}>
+              <Text style={styles.bioLabel}>Bio</Text>
+              <TextInput
+                style={styles.bioInput}
+                placeholder="Tell us about yourself..."
+                placeholderTextColor="#A3D1C6"
+                value={bio}
+                onChangeText={setBio}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
 
             <TouchableOpacity 
               style={styles.modalButton}
@@ -424,12 +485,24 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#B3D8A8',
   },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 5,
+  },
+  placeholderView: {
+    width: 24,
+  },
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#3D8D7A',
-    marginBottom: 20,
     textAlign: 'center',
+    flex: 1,
   },
   imagePickerContainer: {
     alignItems: 'center',
@@ -456,8 +529,25 @@ const styles = StyleSheet.create({
     color: '#A3D1C6',
     fontSize: 16,
   },
+  bioContainer: {
+    marginBottom: 20,
+    width: '100%',
+  },
+  bioLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#3D8D7A',
+    marginBottom: 8,
+  },
   bioInput: {
-    height: 100,
+    backgroundColor: '#FBFFE4',
+    borderRadius: 15,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#B3D8A8',
+    height: 120,
+    fontSize: 16,
+    color: '#3D8D7A',
     textAlignVertical: 'top',
   },
   modalButton: {

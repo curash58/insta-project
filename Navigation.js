@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { onAuthStateChange } from './lib/firebase/auth';
+import { View, ActivityIndicator } from 'react-native';
 
 // Screens
 import Login from './screens/logIn';
@@ -43,20 +44,34 @@ const Navigation = () => {
   const [user, setUser] = useState(null);
 
   // Handle user state changes
-  function onAuthStateChanged(user) {
+  const handleAuthStateChange = (user) => {
+    console.log('Auth state changed in Navigation:', user ? `User ID: ${user.uid}` : 'No user');
+    if (user && user.userData) {
+      console.log('User has Firestore data:', user.userData);
+    }
     setUser(user);
     if (initializing) setInitializing(false);
-  }
+  };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChange(onAuthStateChanged);
+    console.log('Setting up auth state change listener in Navigation');
+    const unsubscribe = onAuthStateChange(handleAuthStateChange);
     
     // Cleanup subscription on unmount
-    return unsubscribe;
+    return () => {
+      console.log('Cleaning up auth state change listener');
+      unsubscribe();
+    };
   }, []);
 
-  // If we're still initializing, don't render anything
-  if (initializing) return null;
+  // If we're still initializing, show a loading indicator
+  if (initializing) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FBFFE4' }}>
+        <ActivityIndicator size="large" color="#3D8D7A" />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer>

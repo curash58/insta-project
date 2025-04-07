@@ -1,49 +1,119 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, FlatList, ActivityIndicator } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import TabForAllPages from '../components/tabForAllPages';
+import { getUserPosts } from '../lib/firebase/posts';
+import { getUserById } from '../lib/firebase/users';
+import { getCurrentUser } from '../lib/firebase/auth';
+import { followUser, unfollowUser } from '../lib/firebase/users';
 
 const { width } = Dimensions.get('window');
 const numColumns = 3;
 const tileSize = width / numColumns;
 
-// Enhanced post data with necessary information for the PostPage
-const POSTS = Array(20).fill().map((_, index) => ({
-  id: index.toString(),
-  username: 'username',
-  userProfileImage: 'https://picsum.photos/200/200?random=otherprofile',
-  imageUrl: `https://picsum.photos/500/500?random=${100 + index}`,
-  caption: `This is post ${index} from another user's profile`,
-  likesCount: Math.floor(Math.random() * 500),
-  commentsCount: Math.floor(Math.random() * 100)
-}));
-
 const ProfileUserLook = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  const userId = route.params?.userId;
+  
+  const [userData, setUserData] = useState(null);
+  const [posts, setPosts] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [userId]);
+
+  const fetchUserData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Get current user to check if following
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
+        setError('User not logged in');
+        setLoading(false);
+        return;
+      }
+      
+      setCurrentUserId(currentUser.uid);
+      
+      // Get user data
+      const userResult = await getUserById(userId);
+      if (!userResult.success) {
+        setError(userResult.error || 'Failed to fetch user data');
+        setLoading(false);
+        return;
+      }
+      
+      setUserData(userResult.user);
+      
+      // Check if current user is following this user
+      const isUserFollowing = currentUser.userData?.following?.includes(userId) || false;
+      setIsFollowing(isUserFollowing);
+      
+      // Fetch user posts
+      const postsResult = await getUserPosts(userId);
+      if (postsResult.success) {
+        setPosts(postsResult.posts);
+      } else {
+        setError(postsResult.error || 'Failed to fetch posts');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePostPress = (postId) => {
-    // Find the post data by id
-    const postData = POSTS.find(post => post.id === postId);
-    
-    // Navigate to the PostPage with the full post data
+    const postData = posts.find(post => post.id === postId);
     if (postData) {
       navigation.navigate('PostPage', { post: postData });
     }
   };
 
   const navigateToFollowers = () => {
-    navigation.navigate('FollowersFollowing', { type: 'followers' });
+    navigation.navigate('FollowersFollowing', { type: 'followers', userId });
   };
 
   const navigateToFollowing = () => {
-    navigation.navigate('FollowersFollowing', { type: 'following' });
+    navigation.navigate('FollowersFollowing', { type: 'following', userId });
   };
 
-  const toggleFollow = () => {
-    setIsFollowing(!isFollowing);
+  const toggleFollow = async () => {
+    if (!currentUserId || !userId) return;
+    
+    try {
+      // Optimistically update UI
+      setIsFollowing(!isFollowing);
+      
+      // Call the appropriate API
+      let result;
+      if (isFollowing) {
+        result = await unfollowUser(currentUserId, userId);
+      } else {
+        result = await followUser(currentUserId, userId);
+      }
+      
+      if (!result.success) {
+        // Revert the optimistic update if the API call failed
+        setIsFollowing(isFollowing);
+        setError(result.error || `Failed to ${isFollowing ? 'unfollow' : 'follow'} user`);
+      }
+    } catch (err) {
+      // Revert the optimistic update if there was an error
+      setIsFollowing(isFollowing);
+      setError('An unexpected error occurred');
+      console.error(err);
+    }
   };
 
   const handleGoBack = () => {
@@ -57,11 +127,55 @@ const ProfileUserLook = () => {
       activeOpacity={0.8}
     >
       <Image 
-        source={{ uri: item.imageUrl }} 
+        source={{ uri: item.imageURL }} 
         style={styles.postImage}
       />
     </TouchableOpacity>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#3D8D7A" />
+            </TouchableOpacity>
+            <Text style={styles.usernameHeader}>Loading...</Text>
+            <View style={styles.placeholder} />
+          </View>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3D8D7A" />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#3D8D7A" />
+            </TouchableOpacity>
+            <Text style={styles.usernameHeader}>Error</Text>
+            <View style={styles.placeholder} />
+          </View>
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity 
+              style={styles.retryButton}
+              onPress={fetchUserData}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -70,57 +184,72 @@ const ProfileUserLook = () => {
           <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#3D8D7A" />
           </TouchableOpacity>
-          <Text style={styles.usernameHeader}>Username</Text>
+          <Text style={styles.usernameHeader}>{userData?.username || 'Username'}</Text>
           <View style={styles.placeholder} />
         </View>
         
         <View style={styles.profileSection}>
           <Image 
-            source={{ uri: 'https://picsum.photos/200/200?random=otherprofile' }} 
+            source={{ 
+              uri: userData?.photoURL || 'https://picsum.photos/200/200?random=profile'
+            }} 
             style={styles.profileImage}
           />
           
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>82</Text>
+              <Text style={styles.statNumber}>{posts?.length || 0}</Text>
               <Text style={styles.statLabel}>posts</Text>
             </View>
             
             <TouchableOpacity style={styles.statItem} onPress={navigateToFollowers}>
-              <Text style={styles.statNumber}>150</Text>
+              <Text style={styles.statNumber}>{userData?.followers?.length || 0}</Text>
               <Text style={styles.statLabel}>followers</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.statItem} onPress={navigateToFollowing}>
-              <Text style={styles.statNumber}>250</Text>
+              <Text style={styles.statNumber}>{userData?.following?.length || 0}</Text>
               <Text style={styles.statLabel}>following</Text>
             </TouchableOpacity>
           </View>
         </View>
         
         <View style={styles.buttonContainer}>
-          <TouchableOpacity 
-            style={[
-              styles.followButton, 
-              isFollowing ? styles.followingButton : styles.notFollowingButton
-            ]}
-            onPress={toggleFollow}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.buttonText}>
-              {isFollowing ? 'Following' : 'Follow'}
-            </Text>
-          </TouchableOpacity>
+          {currentUserId !== userId && (
+            <TouchableOpacity 
+              style={[
+                styles.followButton, 
+                isFollowing ? styles.followingButton : styles.notFollowingButton
+              ]}
+              onPress={toggleFollow}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.buttonText}>
+                {isFollowing ? 'Following' : 'Follow'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
+        
+        {userData?.bio && (
+          <View style={styles.bioContainer}>
+            <Text style={styles.bioText}>{userData.bio}</Text>
+          </View>
+        )}
         
         <View style={styles.postsContainer}>
           <FlatList
-            data={POSTS}
+            data={posts}
             renderItem={renderPost}
             keyExtractor={item => item.id}
             numColumns={numColumns}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.postsGrid}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No posts yet</Text>
+              </View>
+            }
           />
         </View>
       </SafeAreaView>
@@ -225,7 +354,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  bioContainer: {
+    paddingHorizontal: 15,
+    paddingBottom: 15,
+  },
+  bioText: {
+    fontSize: 14,
+    color: '#3D8D7A',
+    lineHeight: 20,
+  },
   postsContainer: {
+    flex: 1,
   },
   postsGrid: {
     paddingBottom: 5,
@@ -238,6 +377,43 @@ const styles = StyleSheet.create({
   postImage: {
     width: '100%',
     height: '100%',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#FF4D67',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#3D8D7A',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: '#FBFFE4',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#3D8D7A',
+    opacity: 0.7,
   },
 });
 

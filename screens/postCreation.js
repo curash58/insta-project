@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, Image, TouchableOpacity, TextInput, Alert, ScrollView, KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,12 +7,33 @@ import TabForAllPages from '../components/tabForAllPages';
 import { useNavigation } from '@react-navigation/native';
 import { createPost } from '../lib/firebase/posts';
 import { getCurrentUser } from '../lib/firebase/auth';
+import { auth } from '../config/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const PostCreation = () => {
   const [image, setImage] = useState(null);
   const [caption, setCaption] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [userId, setUserId] = useState(null);
   const navigation = useNavigation();
+
+  // Check authentication state when component mounts
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log('User is signed in:', user.uid);
+        setUserId(user.uid);
+      } else {
+        console.log('No user is signed in');
+        setUserId(null);
+        Alert.alert('Authentication Error', 'You must be logged in to create a post');
+        navigation.goBack();
+      }
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, [navigation]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -43,16 +64,16 @@ const PostCreation = () => {
       Alert.alert('Error', 'Please add a caption');
       return;
     }
-
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
+    if (!userId) {
       Alert.alert('Error', 'You must be logged in to create a post');
       return;
     }
 
     setIsLoading(true);
     try {
-      const result = await createPost(currentUser.uid, {
+      console.log('Creating post with userId:', userId);
+      
+      const result = await createPost(userId, {
         caption: caption.trim()
       }, image);
 
@@ -64,10 +85,12 @@ const PostCreation = () => {
         // Navigate back to the previous screen
         navigation.goBack();
       } else {
+        console.error('Post creation failed:', result.error);
         Alert.alert('Error', result.error || 'Failed to create post');
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      console.error('Error in handlePost:', error);
+      Alert.alert('Error', 'An unexpected error occurred: ' + error.message);
     } finally {
       setIsLoading(false);
     }

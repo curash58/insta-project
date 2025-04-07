@@ -16,22 +16,35 @@ const SavedPosts = () => {
   const [savedPosts, setSavedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const currentUser = getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    fetchSavedPosts();
+    fetchCurrentUser();
   }, []);
 
-  const fetchSavedPosts = async () => {
-    if (!currentUser) {
+  const fetchCurrentUser = async () => {
+    try {
+      const user = await getCurrentUser();
+      setCurrentUser(user);
+      if (user) {
+        fetchSavedPosts(user);
+      } else {
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+      setLoading(false);
+    }
+  };
+
+  const fetchSavedPosts = async (user) => {
+    if (!user) {
       setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
-      const result = await getSavedPosts(currentUser.uid);
-      
+      const result = await getSavedPosts(user.uid);
       if (result.success) {
         setSavedPosts(result.posts);
       } else {
@@ -97,7 +110,7 @@ const SavedPosts = () => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.postsContainer}
             onScrollBeginDrag={() => Keyboard.dismiss()}
-            onRefresh={fetchSavedPosts}
+            onRefresh={() => fetchSavedPosts(currentUser)}
             refreshing={loading}
           />
         ) : (

@@ -20,6 +20,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { getComments, addComment } from '../lib/firebase/comments';
 import { getCurrentUser } from '../lib/firebase/auth';
 import PostCard from '../components/postCard';
+import { getUserBasicInfo } from '../lib/firebase/users';
 
 const { width } = Dimensions.get('window');
 
@@ -27,7 +28,7 @@ const PostPage = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { post: initialPost } = route.params || {};
-  const currentUser = getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(null);
   
   const [post, setPost] = useState(initialPost);
   const [comment, setComment] = useState('');
@@ -38,10 +39,31 @@ const PostPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    fetchCurrentUser();
+  }, []);
+
+  useEffect(() => {
     if (post) {
       fetchComments();
     }
   }, [post]);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const user = await getCurrentUser();
+      console.log('Current user in PostPage:', user);
+      console.log('User data structure:', {
+        uid: user?.uid,
+        photoURL: user?.photoURL,
+        userData: user?.userData,
+        userDataPhotoURL: user?.userData?.photoURL
+      });
+      setCurrentUser(user);
+    } catch (err) {
+      console.error('Error fetching current user:', err);
+      setError('Failed to get user information');
+    }
+  };
 
   const fetchComments = async () => {
     try {
@@ -59,14 +81,42 @@ const PostPage = () => {
   };
 
   const handlePostComment = async () => {
-    if (!comment.trim() || !currentUser) {
+    if (!comment.trim()) {
+      Alert.alert('Error', 'Please enter a comment');
+      return;
+    }
+    
+    if (!currentUser) {
       Alert.alert('Error', 'You must be logged in to comment');
       return;
     }
 
+    // Validate post ID
+    if (!post || !post.id) {
+      console.error('Invalid post object:', post);
+      Alert.alert('Error', 'Cannot add comment: Invalid post data');
+      return;
+    }
+
+    // Validate user ID
+    if (!currentUser.uid) {
+      console.error('Invalid user object:', currentUser);
+      Alert.alert('Error', 'Cannot add comment: User not properly authenticated');
+      return;
+    }
+
     try {
+      console.log('Adding comment to post:', post.id, 'by user:', currentUser.uid);
       const result = await addComment(post.id, currentUser.uid, comment.trim());
       if (result.success) {
+        // Get user info for the new comment
+        const userResult = await getUserBasicInfo(currentUser.uid);
+        if (userResult.success) {
+          // Add user info to the comment
+          result.comment.username = userResult.userInfo.username;
+          result.comment.userProfileImage = userResult.userInfo.photoURL || 'https://picsum.photos/200/200?random=profile';
+        }
+        
         // Update comments array
         const updatedComments = [result.comment, ...comments];
         setComments(updatedComments);
@@ -82,6 +132,7 @@ const PostPage = () => {
         Alert.alert('Error', result.error || 'Failed to post comment');
       }
     } catch (err) {
+      console.error('Error in handlePostComment:', err);
       Alert.alert('Error', 'An unexpected error occurred');
     }
   };
@@ -151,7 +202,10 @@ const PostPage = () => {
             
             {(displayComments || []).map(comment => (
               <View key={comment.id} style={styles.commentContainer}>
-                <Image source={{ uri: comment.userProfileImage }} style={styles.commentUserImage} />
+                <Image 
+                  source={{ uri: comment.userProfileImage || 'https://picsum.photos/200/200?random=profile' }} 
+                  style={styles.commentUserImage} 
+                />
                 <View style={styles.commentContent}>
                   <Text style={styles.commentUsername}>{comment.username}</Text>
                   <Text style={styles.commentText}>{comment.message}</Text>
@@ -175,7 +229,7 @@ const PostPage = () => {
 
         <View style={styles.commentInputContainer}>
           <Image 
-            source={{ uri: currentUser?.photoURL || 'https://randomuser.me/api/portraits/men/88.jpg' }} 
+            source={{ uri: currentUser?.photoURL || currentUser?.userData?.photoURL || 'https://picsum.photos/200/200?random=profile' }} 
             style={styles.currentUserImage} 
           />
           <TextInput

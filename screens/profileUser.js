@@ -25,27 +25,43 @@ const ProfileUser = () => {
 
   const fetchUserData = async () => {
     try {
-      const currentUser = getCurrentUser();
+      setLoading(true);
+      console.log('Fetching user data in ProfileUser screen...');
+      
+      const currentUser = await getCurrentUser();
+      console.log('Current user in ProfileUser:', currentUser);
+      
       if (!currentUser) {
+        console.log('No user currently logged in');
         setError('User not logged in');
         setLoading(false);
         return;
       }
 
-      // Fetch user data including profile picture
+      // Always fetch fresh user data from Firestore to ensure it's up to date
+      console.log('Fetching fresh user data from Firestore for user ID:', currentUser.uid);
       const userResult = await getUserById(currentUser.uid);
+      
       if (userResult.success) {
+        console.log('User data fetched successfully:', userResult.user);
         setUserData(userResult.user);
+      } else {
+        console.error('Failed to fetch user data:', userResult.error);
+        setError(userResult.error || 'Failed to fetch user data');
       }
 
       // Fetch user posts
+      console.log('Fetching posts for user ID:', currentUser.uid);
       const result = await getUserPosts(currentUser.uid);
       if (result.success) {
+        console.log('Posts fetched successfully, count:', result.posts.length);
         setPosts(result.posts);
       } else {
+        console.error('Failed to fetch posts:', result.error);
         setError(result.error || 'Failed to fetch posts');
       }
     } catch (err) {
+      console.error('Error in fetchUserData:', err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -60,11 +76,11 @@ const ProfileUser = () => {
   };
 
   const navigateToFollowers = () => {
-    navigation.navigate('FollowersFollowing', { type: 'followers' });
+    navigation.navigate('FollowersFollowing', { type: 'followers', userId: userData.uid });
   };
 
   const navigateToFollowing = () => {
-    navigation.navigate('FollowersFollowing', { type: 'following' });
+    navigation.navigate('FollowersFollowing', { type: 'following', userId: userData.uid });
   };
 
   const navigateToSettings = () => {

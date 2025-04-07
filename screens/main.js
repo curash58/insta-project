@@ -1,48 +1,53 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar, Image, TouchableOpacity, Keyboard } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar, Image, TouchableOpacity, Keyboard, ActivityIndicator } from 'react-native';
 import PostCard from '../components/postCard';
 import TabForAllPages from '../components/tabForAllPages';
-
-const POSTS = [
-  {
-    id: '1',
-    username: 'coffee_lover',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/43.jpg',
-    imageUrl: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80',
-    likesCount: 254,
-    commentsCount: 42,
-    caption: 'Perfect morning with my favorite latte art ☕️ #coffeetime'
-  },
-  {
-    id: '2',
-    username: 'plant_enthusiast',
-    userProfileImage: 'https://randomuser.me/api/portraits/men/32.jpg',
-    imageUrl: 'https://images.unsplash.com/photo-1545241047-6083a3684587?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80',
-    likesCount: 189,
-    commentsCount: 23,
-    caption: 'My indoor jungle is growing! 🌿 #plantlover #urbanjungle'
-  },
-  {
-    id: '3',
-    username: 'travel_addict',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/65.jpg',
-    imageUrl: 'https://images.unsplash.com/photo-1527631746610-bca00a040d60?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80',
-    likesCount: 423,
-    commentsCount: 87,
-    caption: 'Missing the beach sunsets in Bali 🌅 #travelmemories'
-  },
-  {
-    id: '4',
-    username: 'foodie_adventures',
-    userProfileImage: 'https://randomuser.me/api/portraits/men/78.jpg',
-    imageUrl: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80',
-    likesCount: 312,
-    commentsCount: 56,
-    caption: 'Homemade pizza night was a success! 🍕 #foodporn #homecooking'
-  }
-];
+import { getAllPostsExceptCurrentUser } from '../lib/firebase/posts';
+import { getCurrentUser } from '../lib/firebase/auth';
 
 const Main = () => {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching posts for main screen...');
+      
+      // Get current user
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
+        console.log('No user currently logged in');
+        setError('User not logged in');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Current user ID:', currentUser.uid);
+      
+      // Fetch posts from other users
+      const result = await getAllPostsExceptCurrentUser(currentUser.uid);
+      
+      if (result.success) {
+        console.log(`Fetched ${result.posts.length} posts from other users`);
+        setPosts(result.posts);
+      } else {
+        console.error('Failed to fetch posts:', result.error);
+        setError(result.error || 'Failed to fetch posts');
+      }
+    } catch (err) {
+      console.error('Error in fetchPosts:', err);
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#FBFFE4" barStyle="dark-content" />
@@ -52,16 +57,35 @@ const Main = () => {
           <Text style={styles.logoText}>Main Screen</Text>
         </View>
         
-        <ScrollView 
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          onScrollBeginDrag={() => Keyboard.dismiss()}
-        >
-          {POSTS.map(post => (
-            <PostCard key={post.id} post={post} />
-          ))}
-        </ScrollView>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3D8D7A" />
+            <Text style={styles.loadingText}>Loading posts...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={fetchPosts}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : posts.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No posts from other users yet.</Text>
+            <Text style={styles.emptySubText}>Follow more users to see their posts here.</Text>
+          </View>
+        ) : (
+          <ScrollView 
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            onScrollBeginDrag={() => Keyboard.dismiss()}
+          >
+            {posts.map(post => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </ScrollView>
+        )}
       </SafeAreaView>
       
       <TabForAllPages />
@@ -108,10 +132,59 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    paddingTop: 10,
   },
   scrollContent: {
-    paddingBottom: 80,
+    paddingBottom: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#3D8D7A',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#FF4D67',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#3D8D7A',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  retryButtonText: {
+    color: '#FBFFE4',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#3D8D7A',
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  emptySubText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
 });
 

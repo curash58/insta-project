@@ -35,8 +35,18 @@ const Settings = () => {
   }, []);
 
   const fetchUserData = async () => {
-    const currentUser = getCurrentUser();
-    if (currentUser) {
+    try {
+      setIsLoading(true);
+      const currentUser = await getCurrentUser();
+      console.log('Current user in settings:', currentUser);
+      
+      if (!currentUser) {
+        console.log('No user currently logged in');
+        Alert.alert('Error', 'You must be logged in to access settings');
+        navigation.navigate('Login');
+        return;
+      }
+      
       try {
         const result = await getUserById(currentUser.uid);
         if (result.success) {
@@ -46,10 +56,19 @@ const Settings = () => {
             setProfileImage(result.user.photoURL);
           }
           setIsEmailVerified(currentUser.emailVerified);
+        } else {
+          console.error('Failed to get user data:', result.error);
+          Alert.alert('Error', 'Failed to load user data');
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
+        Alert.alert('Error', 'Failed to load user data');
       }
+    } catch (error) {
+      console.error('Error in fetchUserData:', error);
+      Alert.alert('Error', 'Failed to load user data');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -135,7 +154,7 @@ const Settings = () => {
 
     try {
       // First, verify current email if not verified
-      const currentUser = getCurrentUser();
+      const currentUser = await getCurrentUser();
       if (currentUser && !currentUser.emailVerified) {
         Alert.alert(
           'Email Not Verified',
@@ -292,96 +311,103 @@ const Settings = () => {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#FBFFE4" />
+            <Ionicons name="arrow-back" size={24} color="#3D8D7A" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Settings</Text>
           <View style={styles.placeholder} />
         </View>
 
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          <View style={styles.profileSection}>
-            <TouchableOpacity onPress={() => setIsAvatarModalVisible(true)}>
-              <Image 
-                source={{ uri: profileImage }} 
-                style={styles.profileImage} 
-              />
-              <View style={styles.editOverlay}>
-                <Ionicons name="camera" size={24} color="#FBFFE4" />
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3D8D7A" />
+            <Text style={styles.loadingText}>Loading user data...</Text>
+          </View>
+        ) : (
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            <View style={styles.profileSection}>
+              <TouchableOpacity onPress={() => setIsAvatarModalVisible(true)}>
+                <Image 
+                  source={{ uri: profileImage }} 
+                  style={styles.profileImage} 
+                />
+                <View style={styles.editOverlay}>
+                  <Ionicons name="camera" size={24} color="#FBFFE4" />
+                </View>
+              </TouchableOpacity>
+              <View style={styles.profileNameContainer}>
+                <Text style={styles.profileName}>{username}</Text>
+                <TouchableOpacity onPress={() => setIsUsernameModalVisible(true)}>
+                  <Ionicons name="create-outline" size={20} color="#3D8D7A" />
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-            <View style={styles.profileNameContainer}>
-              <Text style={styles.profileName}>{username}</Text>
-              <TouchableOpacity onPress={() => setIsUsernameModalVisible(true)}>
-                <Ionicons name="create-outline" size={20} color="#3D8D7A" />
+              <View style={styles.emailContainer}>
+                <Text style={styles.profileEmail}>{email}</Text>
+                {!isEmailVerified && (
+                  <View style={styles.verificationContainer}>
+                    <Text style={styles.verificationText}>Not verified</Text>
+                    <TouchableOpacity 
+                      style={styles.verificationButton}
+                      onPress={handleSendVerificationEmail}
+                    >
+                      <Text style={styles.verificationButtonText}>Verify</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Account Settings</Text>
+              
+              <TouchableOpacity 
+                style={styles.settingItem}
+                onPress={() => setIsPasswordModalVisible(true)}
+              >
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingLabel}>Password</Text>
+                  <Text style={styles.settingValue}>••••••••</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#3D8D7A" />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.settingItem}
+                onPress={() => setIsEmailModalVisible(true)}
+              >
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingLabel}>Email</Text>
+                  <Text style={styles.settingValue}>{email}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#3D8D7A" />
               </TouchableOpacity>
             </View>
-            <View style={styles.emailContainer}>
-              <Text style={styles.profileEmail}>{email}</Text>
-              {!isEmailVerified && (
-                <View style={styles.verificationContainer}>
-                  <Text style={styles.verificationText}>Not verified</Text>
-                  <TouchableOpacity 
-                    style={styles.verificationButton}
-                    onPress={handleSendVerificationEmail}
-                  >
-                    <Text style={styles.verificationButtonText}>Verify</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+
+            <View style={styles.section}>
+              <TouchableOpacity 
+                style={styles.logoutButton}
+                onPress={handleLogout}
+                disabled={isLoading}
+              >
+                <Ionicons name="log-out-outline" size={20} color="#3D8D7A" style={styles.logoutIcon} />
+                {isLoading ? (
+                  <ActivityIndicator color="#3D8D7A" size="small" />
+                ) : (
+                  <Text style={styles.logoutText}>Log out</Text>
+                )}
+              </TouchableOpacity>
             </View>
-          </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Account Settings</Text>
-            
-            <TouchableOpacity 
-              style={styles.settingItem}
-              onPress={() => setIsPasswordModalVisible(true)}
-            >
-              <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Password</Text>
-                <Text style={styles.settingValue}>••••••••</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#3D8D7A" />
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.settingItem}
-              onPress={() => setIsEmailModalVisible(true)}
-            >
-              <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Email</Text>
-                <Text style={styles.settingValue}>{email}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#3D8D7A" />
-            </TouchableOpacity>
-          </View>
-
-          <View>
-            <TouchableOpacity 
-              style={styles.logoutButton}
-              onPress={handleLogout}
-              disabled={isLoading}
-            >
-              <Ionicons name="log-out-outline" size={20} color="#3D8D7A" style={styles.logoutIcon} />
-              {isLoading ? (
-                <ActivityIndicator color="#3D8D7A" size="small" />
-              ) : (
-                <Text style={styles.logoutText}>Log out</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          <View style={[styles.section, styles.dangerSection]}>
-            <TouchableOpacity 
-              style={styles.dangerButton}
-              onPress={() => setIsDeleteAccountModalVisible(true)}
-            >
-              <Ionicons name="trash-outline" size={20} color="#FF4D67" style={styles.dangerIcon} />
-              <Text style={styles.dangerText}>Delete Account</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+            <View style={[styles.section, styles.dangerSection]}>
+              <TouchableOpacity 
+                style={styles.dangerButton}
+                onPress={() => setIsDeleteAccountModalVisible(true)}
+              >
+                <Ionicons name="trash-outline" size={20} color="#FF4D67" style={styles.dangerIcon} />
+                <Text style={styles.dangerText}>Delete Account</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        )}
 
         {/* Avatar Change Modal */}
         <Modal
@@ -642,107 +668,164 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#3D8D7A',
-    padding: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FBFFE4',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
   },
   backButton: {
-    padding: 5,
+    padding: 8,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FBFFE4',
-    textAlign: 'center',
+    color: '#3D8D7A',
   },
   placeholder: {
-    width: 34, 
+    width: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FBFFE4',
+  },
+  loadingText: {
+    color: '#3D8D7A',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
   },
   scrollView: {
     flex: 1,
-    padding: 20,
+  },
+  profileSection: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    backgroundColor: '#FBFFE4',
+  },
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 10,
+  },
+  editOverlay: {
+    position: 'absolute',
+    bottom: 10,
+    right: 0,
+    backgroundColor: '#3D8D7A',
+    borderRadius: 15,
+    padding: 8,
+  },
+  profileNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  profileName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#3D8D7A',
+    marginRight: 5,
+  },
+  emailContainer: {
+    alignItems: 'center',
+  },
+  profileEmail: {
+    fontSize: 16,
+    color: '#666',
+  },
+  verificationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  verificationText: {
+    color: '#FF4D67',
+    marginRight: 10,
+  },
+  verificationButton: {
+    backgroundColor: '#3D8D7A',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 5,
+  },
+  verificationButtonText: {
+    color: '#FBFFE4',
+    fontSize: 12,
   },
   section: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 25,
-    shadowColor: '#3D8D7A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    backgroundColor: '#FBFFE4',
+    marginTop: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#3D8D7A',
-    marginBottom: 15,
+    marginBottom: 10,
   },
   settingItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 15,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8F5E9',
+    borderBottomColor: '#E5E5E5',
   },
   settingInfo: {
     flex: 1,
   },
   settingLabel: {
     fontSize: 16,
-    color: '#3D8D7A',
-    fontWeight: '600',
-    marginBottom: 3,
+    color: '#333',
+    marginBottom: 4,
   },
   settingValue: {
     fontSize: 14,
-    color: '#A3D1C6',
-  },
-  dangerSection: {
-    borderWidth: 1,
-    borderColor: '#FF4D6730',
-    backgroundColor: '#FFF5F5',
+    color: '#666',
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 25,
-    backgroundColor: '#FFF',
-    borderColor: '#3D8D7A',
+    backgroundColor: '#FBFFE4',
+    paddingVertical: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    borderRadius: 10,
-    marginBottom: 10,
+    borderColor: '#3D8D7A',
   },
   logoutIcon: {
     marginRight: 8,
   },
   logoutText: {
     color: '#3D8D7A',
-    fontWeight: '600',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  dangerSection: {
+    marginBottom: 20,
   },
   dangerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 7,
-    backgroundColor: '#FFF5F5',
-    borderRadius: 10,
+    backgroundColor: '#FBFFE4',
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FF4D67',
   },
   dangerIcon: {
     marginRight: 8,
   },
   dangerText: {
     color: '#FF4D67',
-    fontWeight: '600',
     fontSize: 16,
+    fontWeight: 'bold',
   },
   centeredView: {
     flex: 1,
@@ -819,79 +902,6 @@ const styles = StyleSheet.create({
     color: '#FF4D67',
     fontWeight: 'bold',
     fontSize: 16,
-  },
-  profileSection: {
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    margin: 15,
-    shadowColor: '#3D8D7A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  profileNameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 15,
-  },
-  profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: '#3D8D7A',
-  },
-  editOverlay: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#3D8D7A',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FBFFE4',
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#3D8D7A',
-    marginRight: 10,
-  },
-  profileEmail: {
-    fontSize: 16,
-    color: '#A3D1C6',
-    marginTop: 5,
-  },
-  emailContainer: {
-    alignItems: 'center',
-    marginTop: 5,
-  },
-  verificationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 5,
-  },
-  verificationText: {
-    fontSize: 12,
-    color: '#FF4D67',
-    marginRight: 10,
-  },
-  verificationButton: {
-    backgroundColor: '#3D8D7A',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  verificationButtonText: {
-    color: '#FBFFE4',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   avatarPreviewContainer: {
     alignItems: 'center',

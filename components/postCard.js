@@ -12,32 +12,40 @@ const PostCard = ({ post, onLikeChange, onSaveChange }) => {
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isCheckingSaved, setIsCheckingSaved] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
   const navigation = useNavigation();
-  const currentUser = getCurrentUser();
 
   useEffect(() => {
-    // Check if current user has liked the post
-    if (post && currentUser) {
-      setLiked(post.likes?.includes(currentUser.uid) || false);
-      
-      // Check if post is saved
-      const checkSavedStatus = async () => {
-        setIsCheckingSaved(true);
-        try {
-          const result = await isPostSaved(currentUser.uid, post.id);
-          if (result.success) {
-            setSaved(result.isSaved);
+    // Fetch current user
+    const fetchCurrentUser = async () => {
+      try {
+        const user = await getCurrentUser();
+        setCurrentUser(user);
+        
+        // Check if current user has liked the post
+        if (post && user) {
+          setLiked(post.likes?.includes(user.uid) || false);
+          
+          // Check if post is saved
+          setIsCheckingSaved(true);
+          try {
+            const result = await isPostSaved(user.uid, post.id);
+            if (result.success) {
+              setSaved(result.isSaved);
+            }
+          } catch (error) {
+            console.error('Error checking saved status:', error);
+          } finally {
+            setIsCheckingSaved(false);
           }
-        } catch (error) {
-          console.error('Error checking saved status:', error);
-        } finally {
-          setIsCheckingSaved(false);
         }
-      };
-      
-      checkSavedStatus();
-    }
-  }, [post, currentUser]);
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+      }
+    };
+    
+    fetchCurrentUser();
+  }, [post]);
 
   const handleLike = async () => {
     if (!currentUser) {
@@ -113,7 +121,7 @@ const PostCard = ({ post, onLikeChange, onSaveChange }) => {
         activeOpacity={0.7}
       >
         <Image 
-          source={{ uri: post.userProfileImage }} 
+          source={{ uri: post.userProfileImage || 'https://picsum.photos/200/200?random=profile' }} 
           style={styles.profileImage} 
         />
         <Text style={styles.username}>{post.username}</Text>
