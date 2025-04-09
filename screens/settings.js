@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import TabForAllPages from '../components/tabForAllPages';
 import * as ImagePicker from 'expo-image-picker';
-import { logoutUser, getCurrentUser, updateUserProfile, updateUserPassword, deleteUserAccountAndAssociatedData, sendVerificationEmail } from '../lib/firebase/auth';
+import { logoutUser, getCurrentUser, updateUserProfile, updateUserPassword, deleteUserAccountAndAssociatedData, sendVerificationEmail, requestPasswordReset } from '../lib/firebase/auth';
 import { getUserById } from '../lib/firebase/users';
 
 const Settings = () => {
@@ -239,6 +239,42 @@ const Settings = () => {
     );
   };
 
+  const handlePasswordReset = async () => {
+    Alert.alert(
+      'Reset Password',
+      'A password reset email will be sent to your email address. Continue?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Send Reset Email',
+          onPress: async () => {
+            setIsLoading(true);
+            try {
+              const result = await requestPasswordReset(email);
+              if (result.success) {
+                Alert.alert(
+                  'Email Sent',
+                  'Password reset instructions have been sent to your email address.',
+                  [{ text: 'OK' }]
+                );
+              } else {
+                Alert.alert('Error', result.error || 'Failed to send password reset email');
+              }
+            } catch (error) {
+              Alert.alert('Error', error.message || 'An unexpected error occurred');
+            } finally {
+              setIsLoading(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   const handleSendVerificationEmail = async () => {
     try {
       const result = await sendVerificationEmail();
@@ -312,6 +348,17 @@ const Settings = () => {
                 <View style={styles.settingInfo}>
                   <Text style={styles.settingLabel}>Password</Text>
                   <Text style={styles.settingValue}>••••••••</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#3D8D7A" />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.settingItem}
+                onPress={handlePasswordReset}
+              >
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingLabel}>Reset Password</Text>
+                  <Text style={styles.settingValue}>Send reset email</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#3D8D7A" />
               </TouchableOpacity>
