@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar, Image, TouchableOpacity, Keyboard, ActivityIndicator, TextInput, FlatList, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar, Image, TouchableOpacity, Keyboard, ActivityIndicator, TextInput, FlatList, Platform, RefreshControl } from 'react-native';
 import PostCard from '../components/postCard';
 import TabForAllPages from '../components/tabForAllPages';
 import { getAllPostsExceptCurrentUser } from '../lib/firebase/posts';
 import { getCurrentUser } from '../lib/firebase/auth';
 import { searchUsers } from '../lib/firebase/users';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 const Main = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -18,10 +19,13 @@ const Main = () => {
   const [currentUserId, setCurrentUserId] = useState(null);
   const navigation = useNavigation();
 
-  useEffect(() => {
-    fetchPosts();
-    fetchCurrentUser();
-  }, []);
+  // Fetch posts when the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchPosts();
+      fetchCurrentUser();
+    }, [])
+  );
 
   const fetchCurrentUser = async () => {
     try {
@@ -67,6 +71,17 @@ const Main = () => {
       setLoading(false);
     }
   };
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchPosts();
+    } catch (error) {
+      console.error('Error refreshing posts:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   const handleSearch = async (text) => {
     setSearchQuery(text);
@@ -202,6 +217,16 @@ const Main = () => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
             onScrollBeginDrag={() => Keyboard.dismiss()}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#3D8D7A']}
+                tintColor="#3D8D7A"
+                title="Pull to refresh"
+                titleColor="#3D8D7A"
+              />
+            }
           >
             {posts.map(post => (
               <PostCard key={post.id} post={post} />
