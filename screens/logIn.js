@@ -45,7 +45,7 @@ const Login = ({ navigation }) => {
           </View>
 
           <View style={styles.formContainer}>
-            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.title}>Welcome</Text>
             <Text style={styles.subtitle}>Sign in to continue</Text>
 
             <View style={styles.inputContainer}>
@@ -70,6 +70,7 @@ const Login = ({ navigation }) => {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
+                autoCapitalize="none"
               />
               <TouchableOpacity 
                 onPress={() => setShowPassword(!showPassword)}

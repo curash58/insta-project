@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import TabForAllPages from '../components/tabForAllPages';
 import * as ImagePicker from 'expo-image-picker';
-import { logoutUser, getCurrentUser, updateUserProfile, updateUserEmail, updateUserPassword, deleteUserAccount, sendVerificationEmail } from '../lib/firebase/auth';
+import { logoutUser, getCurrentUser, updateUserProfile, updateUserEmail, updateUserPassword, deleteUserAccountAndAssociatedData, sendVerificationEmail } from '../lib/firebase/auth';
 import { getUserById } from '../lib/firebase/users';
 
 const Settings = () => {
@@ -236,27 +236,41 @@ const Settings = () => {
     }
   };
 
-  const deleteAccount = async () => {
+  const handleDeleteAccount = async () => {
     if (deleteConfirmation !== 'DELETE') {
-      Alert.alert('Error', 'Please type DELETE to confirm');
+      Alert.alert('Error', 'Please type DELETE to confirm account deletion');
       return;
     }
 
+    setIsLoading(true); // Show loading indicator
     try {
-      const result = await deleteUserAccount(currentPassword);
+      // Call the new comprehensive delete function
+      const result = await deleteUserAccountAndAssociatedData(currentPassword);
       
       if (result.success) {
         setDeleteConfirmation('');
         setIsDeleteAccountModalVisible(false);
-        
-        // Navigate back to login screen after account deletion
-        navigation.navigate('Login');
-        Alert.alert('Account Deleted', 'Your account has been successfully deleted');
+        // Navigation back to login screen is usually handled by the Auth listener
+        // after the user is deleted.
+        Alert.alert('Account Deleted', 'Your account and all associated data have been successfully deleted');
       } else {
-        Alert.alert('Error', result.error || 'Failed to delete account');
+        // Handle specific errors like re-authentication needed
+        if (result.code === 'auth/requires-recent-login') {
+          Alert.alert(
+            'Re-authentication Required', 
+            'This is a sensitive operation and requires you to log in again. Please log out and log back in before deleting your account.'
+          );
+        } else if (result.code === 'auth/wrong-password') {
+          Alert.alert('Incorrect Password', 'The password you entered is incorrect. Please try again.');
+        } else {
+          Alert.alert('Error', result.error || 'Failed to delete account. Please try again.');
+        }
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to delete account');
+      console.error("Account deletion error:", error);
+      Alert.alert('Error', 'An unexpected error occurred during account deletion.');
+    } finally {
+      setIsLoading(false); // Hide loading indicator
     }
   };
 
@@ -567,49 +581,50 @@ const Settings = () => {
           animationType="slide"
           transparent
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.centeredView}
-          >
+          <View style={styles.centeredView}>
             <View style={styles.modalView}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, styles.dangerText]}>Delete Account</Text>
+                <Text style={styles.modalTitle}>Delete Account</Text>
                 <TouchableOpacity onPress={() => setIsDeleteAccountModalVisible(false)}>
                   <Ionicons name="close" size={24} color="#3D8D7A" />
                 </TouchableOpacity>
               </View>
-              
-              <Text style={styles.deleteWarning}>
-                This action cannot be undone. All your data will be permanently deleted.
+              <Text style={styles.modalText}>
+                This action is irreversible. All your posts, comments, and profile data will be permanently deleted.
+              </Text>
+              <Text style={styles.modalText}>
+                Please enter your current password and type DELETE below to confirm.
               </Text>
               
-              <Text style={styles.inputLabel}>Type DELETE to confirm</Text>
               <TextInput
-                style={[styles.input, styles.dangerInput]}
-                placeholder="DELETE"
-                placeholderTextColor="#FF4D6760"
-                value={deleteConfirmation}
-                onChangeText={setDeleteConfirmation}
-              />
-              
-              <Text style={styles.inputLabel}>Enter your password</Text>
-              <TextInput
-                style={[styles.input, styles.dangerInput]}
-                placeholder="Enter your current password"
-                placeholderTextColor="#FF4D6760"
+                style={styles.modalInput}
+                placeholder="Current Password"
+                placeholderTextColor="#A3D1C6"
+                secureTextEntry
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
-                secureTextEntry
               />
-              
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Type DELETE to confirm"
+                placeholderTextColor="#A3D1C6"
+                value={deleteConfirmation}
+                onChangeText={setDeleteConfirmation}
+                autoCapitalize="characters"
+              />
               <TouchableOpacity 
-                style={[styles.actionButton, styles.dangerButton]}
-                onPress={deleteAccount}
+                style={styles.modalDangerButton}
+                onPress={handleDeleteAccount}
+                disabled={isLoading}
               >
-                <Text style={styles.dangerButtonText}>Delete My Account</Text>
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.modalButtonText}>Confirm Deletion</Text>
+                )}
               </TouchableOpacity>
             </View>
-          </KeyboardAvoidingView>
+          </View>
         </Modal>
 
         {/* Username Change Modal */}
@@ -925,6 +940,35 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: '#3D8D7A',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  modalText: {
+    fontSize: 14,
+    color: '#3D8D7A',
+    marginBottom: 10,
+  },
+  modalInput: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#B3D8A8',
+    fontSize: 16,
+    color: '#3D8D7A',
+  },
+  modalDangerButton: {
+    backgroundColor: '#FF4D67',
+    borderRadius: 10,
+    padding: 15,
+    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  modalButtonText: {
+    color: '#FBFFE4',
     fontWeight: 'bold',
     fontSize: 16,
   },

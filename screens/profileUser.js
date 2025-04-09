@@ -156,6 +156,13 @@ const ProfileUser = () => {
           </View>
         </View>
         
+        {/* Add Bio Section Here */}
+        {userData?.bio && (
+          <View style={styles.bioContainer}>
+            <Text style={styles.bioText}>{userData.bio}</Text>
+          </View>
+        )}
+        
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.button} onPress={navigateToSettings}>
             <Ionicons name="settings-outline" size={18} color="#FBFFE4" style={styles.buttonIcon} />
@@ -288,6 +295,16 @@ const styles = StyleSheet.create({
     color: '#FF4D67',
     fontSize: 16,
     textAlign: 'center',
+  },
+  // Add styles for bio
+  bioContainer: {
+    paddingHorizontal: 15,
+    paddingBottom: 15,
+  },
+  bioText: {
+    fontSize: 14,
+    color: '#3D8D7A',
+    lineHeight: 20,
   },
 });
 

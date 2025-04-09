@@ -82,8 +82,8 @@ const PostCreation = () => {
         // Reset the form
         setImage(null);
         setCaption('');
-        // Navigate back to the previous screen
-        navigation.goBack();
+        // Navigate back to the Main screen
+        navigation.navigate('Main');
       } else {
         console.error('Post creation failed:', result.error);
         Alert.alert('Error', result.error || 'Failed to create post');
