@@ -501,7 +501,10 @@ const Settings = () => {
           animationType="slide"
           transparent
         >
-          <View style={styles.centeredView}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.centeredView}
+          >
             <View style={styles.modalView}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Delete Account</Text>
@@ -523,6 +526,8 @@ const Settings = () => {
                 secureTextEntry
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
+                autoCapitalize="none"
+                returnKeyType="next"
               />
               <TextInput
                 style={styles.modalInput}
@@ -531,6 +536,12 @@ const Settings = () => {
                 value={deleteConfirmation}
                 onChangeText={setDeleteConfirmation}
                 autoCapitalize="characters"
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  if (deleteConfirmation === 'DELETE') {
+                    handleDeleteAccount();
+                  }
+                }}
               />
               <TouchableOpacity 
                 style={styles.modalDangerButton}
@@ -544,7 +555,7 @@ const Settings = () => {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Username Change Modal */}
