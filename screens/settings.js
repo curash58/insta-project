@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import TabForAllPages from '../components/tabForAllPages';
 import * as ImagePicker from 'expo-image-picker';
-import { logoutUser, getCurrentUser, updateUserProfile, updateUserEmail, updateUserPassword, deleteUserAccountAndAssociatedData, sendVerificationEmail } from '../lib/firebase/auth';
+import { logoutUser, getCurrentUser, updateUserProfile, updateUserPassword, deleteUserAccountAndAssociatedData, sendVerificationEmail } from '../lib/firebase/auth';
 import { getUserById } from '../lib/firebase/users';
 
 const Settings = () => {
@@ -18,7 +18,6 @@ const Settings = () => {
   const [isEmailVerified, setIsEmailVerified] = useState(true);
   
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
-  const [isEmailModalVisible, setIsEmailModalVisible] = useState(false);
   const [isDeleteAccountModalVisible, setIsDeleteAccountModalVisible] = useState(false);
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
   const [isUsernameModalVisible, setIsUsernameModalVisible] = useState(false);
@@ -26,7 +25,6 @@ const Settings = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [newEmail, setNewEmail] = useState('');
   const [newUsername, setNewUsername] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
@@ -143,72 +141,6 @@ const Settings = () => {
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to update password');
-    }
-  };
-
-  const updateEmail = async () => {
-    if (!newEmail.trim() || !newEmail.includes('@')) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return;
-    }
-
-    try {
-      // First, verify current email if not verified
-      const currentUser = await getCurrentUser();
-      if (currentUser && !currentUser.emailVerified) {
-        Alert.alert(
-          'Email Not Verified',
-          'Your current email is not verified. We need to verify it before changing to a new one.',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel'
-            },
-            {
-              text: 'Send Verification Email',
-              onPress: async () => {
-                try {
-                  const result = await sendVerificationEmail();
-                  if (result.success) {
-                    Alert.alert(
-                      'Verification Email Sent',
-                      'Please check your inbox and verify your email before trying to change it.',
-                      [{ text: 'OK', onPress: () => setIsEmailModalVisible(false) }]
-                    );
-                  } else {
-                    Alert.alert('Error', result.error || 'Failed to send verification email');
-                  }
-                } catch (error) {
-                  Alert.alert('Error', 'Failed to send verification email');
-                }
-              }
-            }
-          ]
-        );
-        return;
-      }
-
-      // If email is verified, proceed with changing it
-      const result = await updateUserEmail(newEmail, currentPassword);
-      
-      if (result.success) {
-        setEmail(newEmail);
-        setNewEmail('');
-        setCurrentPassword('');
-        setIsEmailModalVisible(false);
-
-        // Send verification for new email
-        await sendVerificationEmail();
-        
-        Alert.alert(
-          'Email Updated', 
-          'Your email has been updated successfully! A verification email has been sent to your new address. Please verify it.'
-        );
-      } else {
-        Alert.alert('Error', result.error || 'Failed to update email');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update email');
     }
   };
 
@@ -383,17 +315,6 @@ const Settings = () => {
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#3D8D7A" />
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.settingItem}
-                onPress={() => setIsEmailModalVisible(true)}
-              >
-                <View style={styles.settingInfo}>
-                  <Text style={styles.settingLabel}>Email</Text>
-                  <Text style={styles.settingValue}>{email}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#3D8D7A" />
-              </TouchableOpacity>
             </View>
 
             <View style={styles.section}>
@@ -523,54 +444,6 @@ const Settings = () => {
                 onPress={updatePassword}
               >
                 <Text style={styles.buttonText}>Update Password</Text>
-              </TouchableOpacity>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
-
-        <Modal
-          visible={isEmailModalVisible}
-          animationType="slide"
-          transparent
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.centeredView}
-          >
-            <View style={styles.modalView}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Change Email</Text>
-                <TouchableOpacity onPress={() => setIsEmailModalVisible(false)}>
-                  <Ionicons name="close" size={24} color="#3D8D7A" />
-                </TouchableOpacity>
-              </View>
-              
-              <Text style={styles.inputLabel}>New Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter new email address"
-                placeholderTextColor="#A3D1C6"
-                value={newEmail}
-                onChangeText={setNewEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              
-              <Text style={styles.inputLabel}>Current Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your current password"
-                placeholderTextColor="#A3D1C6"
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                secureTextEntry
-              />
-              
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={updateEmail}
-              >
-                <Text style={styles.buttonText}>Update Email</Text>
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>

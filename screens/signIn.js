@@ -267,80 +267,87 @@ const SignIn = ({ navigation }) => {
         animationType="slide"
         transparent={true}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity 
-                style={styles.backButton}
-                onPress={() => {
-                  Alert.alert(
-                    'Cancel Profile Setup',
-                    'Are you sure you want to cancel? You will need to start the sign-up process again.',
-                    [
-                      {
-                        text: 'Cancel',
-                        style: 'cancel'
-                      },
-                      {
-                        text: 'Yes, Go Back',
-                        onPress: () => {
-                          setShowProfileModal(false);
-                          setTempUserCredentials(null);
-                        }
-                      }
-                    ]
-                  );
-                }}
-              >
-                <Ionicons name="arrow-back" size={24} color="#3D8D7A" />
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>Complete Your Profile</Text>
-              <View style={styles.placeholderView} />
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.imagePickerContainer}
-              onPress={pickImage}
-            >
-              {profileImage ? (
-                <Image 
-                  source={{ uri: profileImage }} 
-                  style={styles.profileImage}
-                />
-              ) : (
-                <View style={styles.imagePlaceholder}>
-                  <Text style={styles.imagePlaceholderText}>Add Photo</Text>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <TouchableOpacity 
+                    style={styles.backButton}
+                    onPress={() => {
+                      Alert.alert(
+                        'Cancel Profile Setup',
+                        'Are you sure you want to cancel? You will need to start the sign-up process again.',
+                        [
+                          {
+                            text: 'Cancel',
+                            style: 'cancel'
+                          },
+                          {
+                            text: 'Yes, Go Back',
+                            onPress: () => {
+                              setShowProfileModal(false);
+                              setTempUserCredentials(null);
+                            }
+                          }
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="arrow-back" size={24} color="#3D8D7A" />
+                  </TouchableOpacity>
+                  <Text style={styles.modalTitle}>Complete Your Profile</Text>
+                  <View style={styles.placeholderView} />
                 </View>
-              )}
-            </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.imagePickerContainer}
+                  onPress={pickImage}
+                >
+                  {profileImage ? (
+                    <Image 
+                      source={{ uri: profileImage }} 
+                      style={styles.profileImage}
+                    />
+                  ) : (
+                    <View style={styles.imagePlaceholder}>
+                      <Text style={styles.imagePlaceholderText}>Add Photo</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
 
-            <View style={styles.bioContainer}>
-              <Text style={styles.bioLabel}>Bio</Text>
-              <TextInput
-                style={styles.bioInput}
-                placeholder="Tell us about yourself..."
-                placeholderTextColor="#A3D1C6"
-                value={bio}
-                onChangeText={setBio}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
+                <View style={styles.bioContainer}>
+                  <Text style={styles.bioLabel}>Bio</Text>
+                  <TextInput
+                    style={styles.bioInput}
+                    placeholder="Tell us about yourself..."
+                    placeholderTextColor="#A3D1C6"
+                    value={bio}
+                    onChangeText={setBio}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                <TouchableOpacity 
+                  style={styles.modalButton}
+                  onPress={handleProfileSetup}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#FBFFE4" size="small" />
+                  ) : (
+                    <Text style={styles.modalButtonText}>Complete Setup</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
-
-            <TouchableOpacity 
-              style={styles.modalButton}
-              onPress={handleProfileSetup}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#FBFFE4" size="small" />
-              ) : (
-                <Text style={styles.modalButtonText}>Complete Setup</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
