@@ -22,7 +22,8 @@ const Login = ({ navigation }) => {
       const result = await loginUser(email, password);
       
       if (result.success) {
-        navigation.navigate('Main');
+        // Don't navigate directly - the auth state change will handle navigation
+        // navigation.navigate('Main');
       } else {
         Alert.alert('Login Failed', result.error || 'Invalid email or password');
       }

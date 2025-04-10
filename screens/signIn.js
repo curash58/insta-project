@@ -61,6 +61,19 @@ const SignIn = ({ navigation }) => {
       // Store the credentials for later use
       setTempUserCredentials(userCredentials);
       
+      // Register the user with the stored credentials first
+      const result = await registerUser(
+        tempUserCredentials.email, 
+        tempUserCredentials.password, 
+        tempUserCredentials.username
+      );
+      
+      if (result.success) {
+        // Don't navigate directly - the auth state change will handle navigation
+        // navigation.navigate('Main');
+      } else {
+        Alert.alert('Sign Up Failed', result.error || 'Failed to create account');
+      }
     } catch (error) {
       Alert.alert('Error', error.message || 'An unexpected error occurred');
     } finally {
