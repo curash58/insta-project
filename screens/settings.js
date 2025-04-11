@@ -464,6 +464,7 @@ const Settings = () => {
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
                 secureTextEntry
+                autoCapitalize="none"
               />
               
               <Text style={styles.inputLabel}>New Password</Text>
@@ -474,6 +475,7 @@ const Settings = () => {
                 value={newPassword}
                 onChangeText={setNewPassword}
                 secureTextEntry
+                autoCapitalize="none"
               />
               
               <Text style={styles.inputLabel}>Confirm New Password</Text>
@@ -484,6 +486,7 @@ const Settings = () => {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry
+                autoCapitalize="none"
               />
               
               <TouchableOpacity 
